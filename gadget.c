@@ -740,7 +740,7 @@ struct Operand * constIntOrChar(int i) {
 	res->var = newVariable();
 	res->var->index = -1;
 	totIndex--;
-	res->loadable = 1;
+	//res->loadable = 1;
 /*	res->var = (struct Variable *)malloc(sizeof(struct Variable));
 	res->var->level = 0;
 	res->var->name = newEmptyString();
@@ -1104,6 +1104,7 @@ struct Operand * printAccess(struct Function * env, struct Operand * a, struct O
 			}
 			res->var->index = a->var->index;
 			totIndex--;
+			res->loadable = a->loadable && b->constant;
 			return res;
 		}else {
 			struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), a, 0);
@@ -1116,6 +1117,7 @@ struct Operand * printAccess(struct Function * env, struct Operand * a, struct O
 			}
 			inst->c = printAssignOp(env, b, constInt(calcSize(inst->a->var)), 532);
 			push(env, inst);
+			inst->a->loadable = a->loadable && b->constant;
 			return inst->a;
 		}
 	}else {
@@ -1203,7 +1205,7 @@ int isChar(struct Variable * v) {
 
 struct Operand * directLvalue(struct Variable * v) {//将变量转换为直接左值
 	struct Operand * res = newOperand(v, !(v->list == 0 && !isStruct(v)), 0, 0);
-	if(v->list) {
+	if(v->list || isStruct(v)) {
 		res->loadable = 1;
 	}
 	return res;
@@ -1279,6 +1281,7 @@ struct Operand * printMemberAccess(struct Function * env, struct Operand * a, ch
 			copyType(res->var, findMem(a->var->type->vars, name));
 			res->var->index = a->var->index;
 			totIndex--;
+			res->loadable = a->loadable;
 			return res;
 		}else if(a->var->type->type == 2) {
 			struct Variable * p = a->var->type->vars;
@@ -1290,6 +1293,7 @@ struct Operand * printMemberAccess(struct Function * env, struct Operand * a, ch
 						occupy(env, inst->a);
 						copyType(inst->a->var, p);
 						push(env, inst);
+						inst->a->loadable = a->loadable;
 						return inst->a;
 					}else {
 						struct Operand * res = newOperand(newVariable(), 2 - (a->type == 1), 0, 0);
@@ -1297,6 +1301,7 @@ struct Operand * printMemberAccess(struct Function * env, struct Operand * a, ch
 						copyType(res->var, p);
 						res->var->index = a->var->index;
 						totIndex--;
+						res->loadable = a->loadable;
 						return res;
 					}
 				}
@@ -1326,6 +1331,7 @@ struct Operand * printDeref(struct Function * env, struct Operand * a) {
 		res->var->level--;
 	}
 	totIndex--;
+	res->loadable = a->loadable || a->constant;
 	return res;
 /*	if(a->var->list) {
 		copyType(inst->a->var, a->var);
@@ -1341,6 +1347,14 @@ struct Operand * printDeref(struct Function * env, struct Operand * a) {
 }
 
 struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct Operand * c, int op) {
+	if(op == 522 || op == 523) {
+		if(b->loadable && (b->var->list || b->type != 1)) {
+			b = constInt(1);
+		}
+		if(c->loadable && (c->var->list || c->type != 1)) {
+			c = constInt(1);
+		}
+	}
 	if(b->constant && c->constant) {
 		int res;
 		if(op == 523) {
@@ -1416,7 +1430,6 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 			}*/
 			push(env, inst);
 			assignInst = inst;
-			inst->a->loadable = loadable;
 			return inst->a;
 		}else if(isPointer(b->var) || isPointer(c->var) || b->var->list || c->var->list) {
 			//printf("Pointer operation\n");
@@ -1476,7 +1489,7 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 				//printf("%s %d\n", b->var->name, b->var->level);
 				push(env, inst);
 				assignInst = inst;
-				inst->a->loadable = loadable;
+				inst->a->loadable = b->loadable && c->constant;
 				return inst->a;
 			}
 		}else {
@@ -1557,9 +1570,7 @@ struct Operand * printAddressOf(struct Function * env, struct Operand * a) {
 		res->var->level++;
 		res->var->index = a->var->index;
 		totIndex--;
-		if(a->var->name[0]) {
-			res->loadable = 1;
-		}
+		res->loadable = a->loadable;
 		return res;
 	}else {
 		ERROR(31);
@@ -1618,6 +1629,9 @@ struct Operand * printNot(struct Function * env, struct Operand * a) {
 struct Operand * printLogicalNot(struct Function * env, struct Operand * a) {
 	if(a->constant) {
 		return constInt(!a->value);
+	}
+	if(a->loadable && (a->var->list || a->type != 1)) {
+		return constInt(1);
 	}
 	struct Instruction * inst = newInstruction(ASSIGN_LOGICAL_NOT, newOperand(newVariable(), 2, 0, 0), printCast(env, INT_VARIABLE, a), 0);
 	occupy(env, inst->a);
@@ -2406,7 +2420,7 @@ struct List * parseArray() {//分析数组
 	while(look.type == 507) {//'['
 		move();
 		struct Operand * ope = parseConstantExpression(bucket);//分析常量表达式
-		if(ope->constant == 0 || ope->constant && ope->value < 0) {
+		if(ope->constant == 0 || ope->constant && ope->value < 0 || !isIntOrChar(ope->var)) {
 			ERROR(51);
 		}
 		struct List * a = newList();
@@ -2745,7 +2759,7 @@ void parseElementInitialization(struct Function * env, struct Operand * v, int f
 	}else {
 		if(!flag) {
 			struct Operand * res = parseAssignmentExpression(bucket);
-			if(first && env == chief && !res->loadable) {
+			if(first && env == chief && (v->var->level && !(res->loadable || res->constant) || !v->var->level && !res->constant)) {
 				ERROR(96);
 			}
 		}else {
@@ -2759,7 +2773,7 @@ void parseElementInitialization(struct Function * env, struct Operand * v, int f
 				printStringAssign(env, v);
 			}else {
 				struct Operand * res = parseAssignmentExpression(env);
-				if(env == chief && !res->loadable) {
+				if(env == chief && (v->var->level && !(res->loadable || res->constant) || !v->var->level && !res->constant)) {
 					ERROR(95);
 				}
 				printAssign(env, v, res);
@@ -3264,8 +3278,10 @@ int run(struct Function * f) {
 		}
 		int t = inst->type;
 		if(t == GET_ARGU) {
-			a->value = arguStack->value;
-			arguStack = arguStack->prev;
+			if(arguStack) {
+				a->value = arguStack->value;
+				arguStack = arguStack->prev;
+			}
 		}else if(t == DECL_POINTER) {
 			//DO NOTHING
 		}else if(t == DECL_CHAR) {
