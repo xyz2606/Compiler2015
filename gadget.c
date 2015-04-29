@@ -1397,6 +1397,9 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 		//printf("const operation %d\n", res);
 		return constInt(res);
 	}
+	if(op == 532 && (b->constant && b->value == 0 || c->constant && c->value == 0)) {
+		return constInt(0);
+	}
 	if(op == 522 && (b->constant && b->value || c->constant && c->value)) {
 		return constInt(1);
 	}
@@ -1413,6 +1416,9 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 		if(isIntOrChar(b->var) && isIntOrChar(c->var)) {
 			b = printCast(env, INT_VARIABLE, b);
 			c = printCast(env, INT_VARIABLE, c);
+			if(op == 536 && b->var->index == c->var->index) {
+				return constInt(0);
+			}
 			inst = newInstruction(0, newOperand(newVariable(), 2, 0, 0), b, c);
 			occupy(env, inst->a);
 			if(op == 535) {
@@ -1434,6 +1440,17 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 		}else if(isPointer(b->var) || isPointer(c->var) || b->var->list || c->var->list) {
 			//printf("Pointer operation\n");
 			if(compType(b->var, c->var) && op == 536) {
+//				printf("!!\n");
+				if(b->var->index == c->var->index) {
+//				printf("!!\n");
+					struct Operand * ope = newOperand(newVariable(), 2, 0, 0);
+					//copyType(ope->var, b->var);
+					ope->var->index = -1;
+					totIndex--;
+					ope->constant = 1;
+					ope->value = 0;
+					return ope;
+				}
 				inst = newInstruction(ASSIGN_SUB, newOperand(newVariable(), 2, 0, 0), b, c);//Ö¸ÕëÏà¼õ
 				occupy(env, inst->a);
 				push(env, inst);
