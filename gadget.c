@@ -21,27 +21,32 @@ char _c___memcpy__[20] = "__memcpy__";
 
 char * bp, * program;
 
+int errorPainting = 0;
+
 void ERROR(int label) {
-	printf("//////////////  ////////////    ////////////       ////////     ////////////\n");
-	printf("//              //         //   //         //     //      //    //         //\n");
-	printf("//              //          //  //          //   //        //   //          //\n");
-	printf("//              //          //  //          //   //        //   //          //\n");
-	printf("//              //         //   //         //   //          //  //         //\n");
-	printf("//////////      ///////////     ///////////     //          //  ///////////\n");
-	printf("//              //     //       //     //       //          //  //     //\n");
-	printf("//              //      //      //      //      //          //  //      //\n");
-	printf("//              //       //     //       //      //        //   //       //\n");
-	printf("//              //        //    //        //     //        //   //        //\n");
-	printf("//              //         //   //         //     //      //    //         //\n");
-	printf("//////////////  //          //  //          //     ////////     //          //\n");
-	program = program - 100;
-	program[210] = '\0';
-	printf("%d %d\a\a\a%s", label, program - bp, program);
+
+	if(errorPainting) {
+		printf("//////////////  ////////////    ////////////       ////////     ////////////\n");
+		printf("//              //         //   //         //     //      //    //         //\n");
+		printf("//              //          //  //          //   //        //   //          //\n");
+		printf("//              //          //  //          //   //        //   //          //\n");
+		printf("//              //         //   //         //   //          //  //         //\n");
+		printf("//////////      ///////////     ///////////     //          //  ///////////\n");
+		printf("//              //     //       //     //       //          //  //     //\n");
+		printf("//              //      //      //      //      //          //  //      //\n");
+		printf("//              //       //     //       //      //        //   //       //\n");
+		printf("//              //        //    //        //     //        //   //        //\n");
+		printf("//              //         //   //         //     //      //    //         //\n");
+		printf("//////////////  //          //  //          //     ////////     //          //\n");
+		program = program - 100;
+		program[210] = '\0';
+		printf("%d %d\a\a\a%s", label, program - bp, program);
+	}
 	exit(1);
 }
 
 void printERROR(char * s) {
-	printf(s);
+	printf("%s", s);
 	exit(0);
 }
 
@@ -448,8 +453,8 @@ struct Token nextToken() {
 			ERROR(8);
 		}
 		int x = nextChar();
-//		res.value = nextChar();
-		while(*program != '\'') {//×Ö·û³£Á¿³¤¶ÈÒç³ö, Ö±½ÓºöÂÔ.
+		//		res.value = nextChar();
+		while(*program != '\'') {//\D7Ö·\FB\B3\A3\C1\BF\B3\A4\B6\C8\D2\E7\B3\F6, Ö±\BDÓº\F6\C2\D4.
 			if(isNewLine(*program)) {
 				ERROR(9);
 			}else {
@@ -672,10 +677,10 @@ struct SymbolList * newSymbolList(struct SymbolList * top) {
 }
 
 struct Operand {
-	int constant;//±àÒëÊ±³£Êı?
-	int value;//Èç¹ûÊÇ±àÒëÊ±³£Êı, Öµ?
-	int type;//0 Ö±½Ó×óÖµ, 1 ½âÒıÓÃ×óÖµ, 2 ÓÒÖµ
-	struct Variable * var;//²Ù×÷ÊıºÍ±äÁ¿ÀàĞÍ
+	int constant;//\B1\E0\D2\EBÊ±\B3\A3\CA\FD?
+	int value;//\C8\E7\B9\FB\CAÇ±\E0\D2\EBÊ±\B3\A3\CA\FD, Öµ?
+	int type;//0 Ö±\BD\D3\D7\F3Öµ, 1 \BD\E2\D2\FD\D3\C3\D7\F3Öµ, 2 \D3\D2Öµ
+	struct Variable * var;//\B2\D9\D7\F7\CA\FD\BAÍ±\E4\C1\BF\C0\E0\D0\CD
 	int loadable;
 };
 
@@ -741,22 +746,22 @@ struct Operand * constIntOrChar(int i) {
 	res->var->index = -1;
 	totIndex--;
 	//res->loadable = 1;
-/*	res->var = (struct Variable *)malloc(sizeof(struct Variable));
-	res->var->level = 0;
-	res->var->name = newEmptyString();
-	res->var->next = 0;
-	res->var->list = 0;
-	res->var->index = -1;*/
+	/*	res->var = (struct Variable *)malloc(sizeof(struct Variable));
+		res->var->level = 0;
+		res->var->name = newEmptyString();
+		res->var->next = 0;
+		res->var->list = 0;
+		res->var->index = -1;*/
 	return res;
 }
 
-struct Operand * constInt(int i) {//·µ»ØÒ»¸ö³£Á¿i
+struct Operand * constInt(int i) {//\B7\B5\BB\D8Ò»\B8\F6\B3\A3\C1\BFi
 	struct Operand * res = constIntOrChar(i);
 	res->var->type = INT_TYPE;
 	return res;
 }
 
-struct Operand * constChar(int i) {//·µ»ØÒ»¸ö³£Á¿i
+struct Operand * constChar(int i) {//\B7\B5\BB\D8Ò»\B8\F6\B3\A3\C1\BFi
 	struct Operand * res = constIntOrChar(i);
 	res->var->type = CHAR_TYPE;
 	return res;
@@ -772,62 +777,62 @@ struct Operand * parseExpression(struct Function * env);
 
 int
 GET_ARGU = 0,
-DECL_POINTER = 1,
-DECL_CHAR = 2,
-DECL_INT = 3,
-MALLOC = 4,
-GETCHAR = 5,
-PUTCHAR = 6,
-NOP = 7,
-ASSIGN_ADD = 8,
-GOTO = 9,
-LABEL = 10,
-IF_GOTO = 11,
-IF_FALSE_GOTO = 12,
-ASSIGN_LOGICAL_NOT = 13,
-ASSIGN_NOT = 14,
-ASSIGN_NEGATE = 15,
-ASSIGN = 16,
-ASSIGN_CHAR = 17,
-ASSIGN_ADDRESS = 18,
-ASSIGN_INCLUSIVE_OR = 19,
-ASSIGN_EXCLUSIVE_OR = 20,
-ASSIGN_AND = 21,
-ASSIGN_SHR = 22,
-ASSIGN_SHL = 23,
-ASSIGN_SUB = 24,
-CALL = 25,
-ASSIGN_MOD = 26,
-ASSIGN_DIV = 27,
-ASSIGN_MUL = 28,
-ASSIGN_NOT_EQUAL_TO = 29,
-ASSIGN_EQUAL_TO = 30,
-ASSIGN_GREATER_THAN_OR_EQUAL_TO = 31,
-ASSIGN_LESS_THAN_OR_EQUAL_TO = 32,
-ASSIGN_GREATER_THAN = 33,
-ASSIGN_LESS_THAN = 34,
-ASSIGN_LOGIC_OR = 35,
-ASSIGN_LOGIC_AND = 36,
-ASSIGN_DEREF = 37,
-INT_TO_CHAR = 38,
-CHAR_TO_INT = 39,
-DEREF_ASSIGN_ADDRESS = 40,
-DEREF_ASSIGN = 41,
-DEREF_ASSIGN_CHAR = 42,
-RETURN = 43,
-ASSIGN_ADDRESS_OF = 44,
-ARGU = 45,
-EXIT = 46,
-VOID_RETURN = 47,
-ASSIGN_DEREF_ADDRESS = 48,
-ASSIGN_DEREF_CHAR = 49,
-PUTINT = 50;
+	 DECL_POINTER = 1,
+	 DECL_CHAR = 2,
+	 DECL_INT = 3,
+	 MALLOC = 4,
+	 GETCHAR = 5,
+	 PUTCHAR = 6,
+	 NOP = 7,
+	 ASSIGN_ADD = 8,
+	 GOTO = 9,
+	 LABEL = 10,
+	 IF_GOTO = 11,
+	 IF_FALSE_GOTO = 12,
+	 ASSIGN_LOGICAL_NOT = 13,
+	 ASSIGN_NOT = 14,
+	 ASSIGN_NEGATE = 15,
+	 ASSIGN = 16,
+	 ASSIGN_CHAR = 17,
+	 ASSIGN_ADDRESS = 18,
+	 ASSIGN_INCLUSIVE_OR = 19,
+	 ASSIGN_EXCLUSIVE_OR = 20,
+	 ASSIGN_AND = 21,
+	 ASSIGN_SHR = 22,
+	 ASSIGN_SHL = 23,
+	 ASSIGN_SUB = 24,
+	 CALL = 25,
+	 ASSIGN_MOD = 26,
+	 ASSIGN_DIV = 27,
+	 ASSIGN_MUL = 28,
+	 ASSIGN_NOT_EQUAL_TO = 29,
+	 ASSIGN_EQUAL_TO = 30,
+	 ASSIGN_GREATER_THAN_OR_EQUAL_TO = 31,
+	 ASSIGN_LESS_THAN_OR_EQUAL_TO = 32,
+	 ASSIGN_GREATER_THAN = 33,
+	 ASSIGN_LESS_THAN = 34,
+	 ASSIGN_LOGIC_OR = 35,
+	 ASSIGN_LOGIC_AND = 36,
+	 ASSIGN_DEREF = 37,
+	 INT_TO_CHAR = 38,
+	 CHAR_TO_INT = 39,
+	 DEREF_ASSIGN_ADDRESS = 40,
+	 DEREF_ASSIGN = 41,
+	 DEREF_ASSIGN_CHAR = 42,
+	 RETURN = 43,
+	 ASSIGN_ADDRESS_OF = 44,
+	 ARGU = 45,
+	 EXIT = 46,
+	 VOID_RETURN = 47,
+	 ASSIGN_DEREF_ADDRESS = 48,
+	 ASSIGN_DEREF_CHAR = 49,
+	 PUTINT = 50;
 void printOperand(struct Operand * ope) {
-//	if(ope->type == 0 && ope->var->name && ope->var->name[0]) {
-//		printf("%s", ope->var->name);
-//	}else {
-		printf("R[%d]", ope->var->index);
-//	}
+	//	if(ope->type == 0 && ope->var->name && ope->var->name[0]) {
+	//		printf("%s", ope->var->name);
+	//	}else {
+	printf("R[%d]", ope->var->index);
+	//	}
 	if(ope->constant) {
 		printf("(constant ");
 		if(ope->var->type == CHAR_TYPE && ope->var->level == 0 && ope->var->list == 0) {
@@ -946,7 +951,7 @@ void printIntermediateCode(struct Instruction * inst) {
 		printf("\n\n???instruction???%d\n\n", inst->type);
 	}
 }
-//printÃüÁîÖĞ, Ö»ÓĞ¸³ÖµÌá¹©È«²¿²Ù×÷Êı, ÆäËûÔËËã¶¼Ê¡È¥×ó±ß²Ù×÷Êı×÷ÎªÁÙÊ±²Ù×÷ÊıĞÂ½¨²¢·µ»Ø.
+//print\C3\FC\C1\EE\D6\D0, Ö»\D3Ğ¸\B3Öµ\CCá¹©È«\B2\BF\B2\D9\D7\F7\CA\FD, \C6\E4\CB\FB\D4\CB\CBã¶¼Ê¡È¥\D7\F3\B1ß²\D9\D7\F7\CA\FD\D7\F7Îª\C1\D9Ê±\B2\D9\D7\F7\CA\FD\D0Â½\A8\B2\A2\B7\B5\BB\D8.
 
 void push(struct Function * env, struct Instruction * inst) {
 	inst->next = env->insts;
@@ -1011,7 +1016,7 @@ struct Function * findFunc(char * a);
 
 struct Operand * printAddressOf(struct Function * , struct Operand * );
 
-void printAssign(struct Function * env, struct Operand * a, struct Operand * b) {//Òª´¦ÀíÊÇÆÕÍ¨×óÖµ»¹ÊÇ½âÒıÓÃ×óÖµ
+void printAssign(struct Function * env, struct Operand * a, struct Operand * b) {//Òª\B4\A6\C0\ED\CA\C7\C6\D5Í¨\D7\F3Öµ\BB\B9\CAÇ½\E2\D2\FD\D3\C3\D7\F3Öµ
 	if(a->var->list) {
 		ERROR(15);
 	}
@@ -1160,8 +1165,8 @@ void printArgu(struct Function * env, struct Operand * a) {
 	push(env, inst);
 }
 
-int compArray(struct List * p, struct List * q) {//±È½ÏÊı×éÎ¬¶È
-	if(!p && !q) {//Î¬ÊıÏàÍ¬, ·¶Î§¶ÔÓ¦ÏàÍ¬
+int compArray(struct List * p, struct List * q) {//\B1È½\CF\CA\FD\D7\E9Î¬\B6\C8
+	if(!p && !q) {//Î¬\CA\FD\CF\E0Í¬, \B7\B6Î§\B6\D4Ó¦\CF\E0Í¬
 		return 1;
 	}
 	if(!p || !q) {
@@ -1173,14 +1178,14 @@ int compArray(struct List * p, struct List * q) {//±È½ÏÊı×éÎ¬¶È
 	return compArray(p->next, q->next);
 }
 
-int compType(struct Variable * a, struct Variable * b) {//±È½ÏÀàĞÍ
-	if(a->level != b->level) {//±È½ÏÖ¸Õë½×Êı
+int compType(struct Variable * a, struct Variable * b) {//\B1È½\CF\C0\E0\D0\CD
+	if(a->level != b->level) {//\B1È½\CFÖ¸\D5\EB\BD\D7\CA\FD
 		return 0;
 	}
-	if(a->type != b->type) {//±È½Ï»ù±¾ÀàĞÍ
+	if(a->type != b->type) {//\B1È½Ï»\F9\B1\BE\C0\E0\D0\CD
 		return 0;
 	}
-	if(!compArray(a->list, b->list)) {//±È½ÏÊı×éÎ¬¶È
+	if(!compArray(a->list, b->list)) {//\B1È½\CF\CA\FD\D7\E9Î¬\B6\C8
 		return 0;
 	}
 	return 1;
@@ -1203,7 +1208,7 @@ int isChar(struct Variable * v) {
 	return v->type == CHAR_TYPE && !v->list && !v->level;
 }
 
-struct Operand * directLvalue(struct Variable * v) {//½«±äÁ¿×ª»»ÎªÖ±½Ó×óÖµ
+struct Operand * directLvalue(struct Variable * v) {//\BD\AB\B1\E4\C1\BF×ª\BB\BBÎªÖ±\BD\D3\D7\F3Öµ
 	struct Operand * res = newOperand(v, !(v->list == 0 && !isStruct(v)), 0, 0);
 	if(v->list || isStruct(v)) {
 		res->loadable = 1;
@@ -1451,7 +1456,7 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 					ope->value = 0;
 					return ope;
 				}
-				inst = newInstruction(ASSIGN_SUB, newOperand(newVariable(), 2, 0, 0), b, c);//Ö¸ÕëÏà¼õ
+				inst = newInstruction(ASSIGN_SUB, newOperand(newVariable(), 2, 0, 0), b, c);//Ö¸\D5\EB\CF\E0\BC\F5
 				occupy(env, inst->a);
 				push(env, inst);
 				struct List * bak = b->var->list;
@@ -1517,7 +1522,7 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 		c = printCast(env, INT_VARIABLE, c);
 		inst = newInstruction(0, newOperand(newVariable(), 2, 0, 0), b, c); 
 		occupy(env, inst->a);
-		if((isPointer(b->var) || isPointer(c->var)) && op != 524 && op != 525 && op != 523 && op != 522 && op != 513 && op != 514 && op != 526 && op != 527) {//Ö¸Õë¿ÉÒÔ½øĞĞµÄËãÊõ²Ù×÷, ³ıÁË¸Õ²ÅµÄÖ¸Õë¼Ó¼õÕûÊı, ÕûÊı¼ÓÖ¸Õë, Ö¸Õë¼õÖ¸Õë, »¹ÓĞ<=, >=, <, >, ==, !=, &&, ||
+		if((isPointer(b->var) || isPointer(c->var)) && op != 524 && op != 525 && op != 523 && op != 522 && op != 513 && op != 514 && op != 526 && op != 527) {//Ö¸\D5\EB\BF\C9\D2Ô½\F8\D0Ğµ\C4\CB\E3\CA\F5\B2\D9\D7\F7, \B3\FD\C1Ë¸Õ²Åµ\C4Ö¸\D5\EB\BCÓ¼\F5\D5\FB\CA\FD, \D5\FB\CA\FD\BC\D3Ö¸\D5\EB, Ö¸\D5\EB\BC\F5Ö¸\D5\EB, \BB\B9\D3\D0<=, >=, <, >, ==, !=, &&, ||
 			ERROR(29);
 		}
 		if(op == 523) {
@@ -1566,7 +1571,7 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 
 struct Operand * printAddressOf(struct Function * env, struct Operand * a) {
 	if(a->var->list) {// || isVoid(a->var)) {
-		ERROR(30);//ÑË¸î°æ,²»ÔÊĞí¶ÔÊı×éÈ¡µØÖ·, ±£Ö¤´¦ÀíµÄ±äÁ¿È«¶¼ÊÇ»ù±¾ÀàĞÍµÄÖ¸ÕëµÄÊı×é.
+		ERROR(30);//\D1Ë¸\EE\B0\E6,\B2\BB\D4\CA\D0\ED\B6\D4\CA\FD\D7\E9È¡\B5\D8Ö·, \B1\A3Ö¤\B4\A6\C0\ED\B5Ä±\E4\C1\BFÈ«\B6\BC\CAÇ»\F9\B1\BE\C0\E0\D0Íµ\C4Ö¸\D5\EB\B5\C4\CA\FD\D7\E9.
 	}
 	if(a->type == 0) {
 		struct Instruction * inst = newInstruction(0, newOperand(newVariable(), 2, 0, 0), a, 0);
@@ -1756,7 +1761,7 @@ void printNOP(struct Function * env) {
 	push(env, inst);
 }
 
-struct Operand * printPutchar(struct Function * env, struct Operand * a) {//Îñ±Ø·µ»Øvoid
+struct Operand * printPutchar(struct Function * env, struct Operand * a) {//\CE\F1\B1Ø·\B5\BB\D8void
 	if(isVoid(a->var) || isStruct(a->var)) {
 		ERROR(33);
 	}
@@ -1765,7 +1770,7 @@ struct Operand * printPutchar(struct Function * env, struct Operand * a) {//Îñ±Ø
 	return directLvalue(VOID_VARIABLE);
 }
 
-struct Operand * printPutint(struct Function * env, struct Operand * a) {//Îñ±Ø·µ»Øvoid
+struct Operand * printPutint(struct Function * env, struct Operand * a) {//\CE\F1\B1Ø·\B5\BB\D8void
 	if(isVoid(a->var) || isStruct(a->var)) {
 		ERROR(33);
 	}
@@ -1949,7 +1954,7 @@ struct Operand * parseActualArgument(struct Function * env, struct Operand * p) 
 		v->level = 1;
 		printArgu(env, printCast(env, v, parseAssignmentExpression(env)));
 		struct Operand * ope = newOperand(newVariable(), 0, 0, 0);
-		ope->var->level = 1;//ÊÖ¶¯int*
+		ope->var->level = 1;//\CAÖ¶\AFint*
 		int cnt = 0;
 		printMalloc(env, constInt(cnt * POINTER_SIZE));
 		struct Instruction * inst = env->insts;
@@ -2121,7 +2126,7 @@ struct Operand * parseUnaryExpression(struct Function * env) {
 		//printf("U %d\n", env);
 		struct Operand * tmp = parseCastExpression(env);
 	//	printf("U %d\n", env);
-		return printDeref(env, tmp);//±ğÍüÁËÀïÃæµÄÀàĞÍ¼ì²é
+		return printDeref(env, tmp);//\B1\F0\CD\FC\C1\CB\C0\EF\C3\E6\B5\C4\C0\E0\D0Í¼\EC\B2\E9
 	}else if(look.type == 515) {//'+'
 		move();
 		struct Operand * tmp = parseCastExpression(env);
@@ -2402,7 +2407,7 @@ struct Operand * parseAssignmentExpression(struct Function * env) {
 		}else {
 			struct Operand * tmp = printAssignOp(env, res, parseAssignmentExpression(env), assignType);
 			if(assignInst && tmp == assignInst->a && isChar(tmp->var) == isChar(res->var) && res->type == 0) {
-				assignInst->a = res;//ÓÅ»¯: ±í´ïÊ½Æ´½Ó such as a = b + c => t1 = b + c, a = t1 => a = b + c
+				assignInst->a = res;//\D3Å»\AF: \B1\ED\B4\EFÊ½Æ´\BD\D3 such as a = b + c => t1 = b + c, a = t1 => a = b + c
 			}else {
 				printAssign(env, res, tmp);
 			}
@@ -2432,11 +2437,11 @@ struct Operand * parseExpression(struct Function * env) {
 }
 
 
-struct List * parseArray() {//·ÖÎöÊı×é
+struct List * parseArray() {//\B7\D6\CE\F6\CA\FD\D7\E9
 	struct List * v = 0;
 	while(look.type == 507) {//'['
 		move();
-		struct Operand * ope = parseConstantExpression(bucket);//·ÖÎö³£Á¿±í´ïÊ½
+		struct Operand * ope = parseConstantExpression(bucket);//\B7\D6\CE\F6\B3\A3\C1\BF\B1\ED\B4\EFÊ½
 		if(ope->constant == 0 || ope->constant && ope->value < 0 || !isIntOrChar(ope->var)) {
 			ERROR(51);
 		}
@@ -2468,7 +2473,7 @@ struct List * parseArray() {//·ÖÎöÊı×é
 	return v;
 }
 
-struct Variable * parsePlainDeclarator(int enableAnony) {//·ÖÎöÖ¸Õë½×ÊıºÍ±äÁ¿Ãû!
+struct Variable * parsePlainDeclarator(int enableAnony) {//\B7\D6\CE\F6Ö¸\D5\EB\BD\D7\CA\FD\BAÍ±\E4\C1\BF\C3\FB!
 	struct Variable * v = newVariable();
 	//printf("%d\n", look.type);
 	while(look.type == 509) {//'*'
@@ -2490,7 +2495,7 @@ struct Variable * parsePlainDeclarator(int enableAnony) {//·ÖÎöÖ¸Õë½×ÊıºÍ±äÁ¿Ãû!
 	return v;
 }
 
-struct Type * find(char * name) {//²éÕÒunion»òÕßstructÃû×Ö, Ã»ÓĞµ½ÉÏ²ã·ûºÅ±íÖĞÕÒ.
+struct Type * find(char * name) {//\B2\E9\D5\D2union\BB\F2\D5\DFstruct\C3\FB\D7\D6, Ã»\D3Ğµ\BD\C9Ï²\E3\B7\FB\BAÅ±\ED\D6\D0\D5\D2.
 	struct SymbolList * p = top;
 	for(; p;) {
 		struct Type * itr = p->QaQ;
@@ -2519,7 +2524,7 @@ struct Type * findTop(char * name) {
 	return 0;
 }
 
-struct Variable * findMem(struct Variable * vars, char * name) {//ÕÒ³ÉÔ±±äÁ¿
+struct Variable * findMem(struct Variable * vars, char * name) {//\D5Ò³\C9Ô±\B1\E4\C1\BF
 	struct Variable * p = vars;
 	while(p) {
 		if(!strcmp(p->name, name)) {
@@ -2530,8 +2535,8 @@ struct Variable * findMem(struct Variable * vars, char * name) {//ÕÒ³ÉÔ±±äÁ¿
 	return 0;
 }
 
-struct Type * parseTypeSpecifier() {//·ÖÎöÀàĞÍ
-	if(look.type == 304 || look.type == 305) {//'struct' 'union'ÀàĞÍ
+struct Type * parseTypeSpecifier() {//\B7\D6\CE\F6\C0\E0\D0\CD
+	if(look.type == 304 || look.type == 305) {//'struct' 'union'\C0\E0\D0\CD
 		int s_or_u = look.type;
 		move();
 		struct Token structName = look;
@@ -2545,7 +2550,7 @@ struct Type * parseTypeSpecifier() {//·ÖÎöÀàĞÍ
 			move();
 		}
 		//printf("Typename %s\n", structName.name);
-		if(look.type == 505) {//'{'ËµÃ÷ÒªÏÈ¶¨Òå
+		if(look.type == 505) {//'{'Ëµ\C3\F7Òª\CFÈ¶\A8\D2\E5
 			struct Type * a;
 			a = findTop(structName.name);
 			if(structName.name[0] == 0 || a == 0) {
@@ -2565,23 +2570,23 @@ struct Type * parseTypeSpecifier() {//·ÖÎöÀàĞÍ
 //			struct SymbolList * newTop = newSymbolList(top);
 //			top = newTop;
 			for(; look.type != 506;) {//'}'
-				struct Type * t = parseTypeSpecifier();//·ÖÎö³ÉÔ±µÄÀàĞÍ
+				struct Type * t = parseTypeSpecifier();//\B7\D6\CE\F6\B3\C9Ô±\B5\C4\C0\E0\D0\CD
 				int flag = 0;
 				for( ; look.type != 502; ) {//';'
-					if(look.type == 506) {//'}', struct A {int x};ÕâÑù¿ÉÒÔµÄ.
+					if(look.type == 506) {//'}', struct A {int x};\D5\E2\D1\F9\BF\C9\D2Ôµ\C4.
 						break;
 					}
 					flag = 1;
-					struct Variable * v = parsePlainDeclarator(0);//³ÉÔ±µÄÃû×ÖºÍÊı×é½×Êı
-					if(findMem(a->vars, v->name)) {//³ÉÔ±²»ÄÜÖØÃû
+					struct Variable * v = parsePlainDeclarator(0);//\B3\C9Ô±\B5\C4\C3\FB\D7Öº\CD\CA\FD\D7\E9\BD\D7\CA\FD
+					if(findMem(a->vars, v->name)) {//\B3\C9Ô±\B2\BB\C4\DC\D6\D8\C3\FB
 						ERROR(55);
 					}
-					if(look.type == 507) {//'['ËµÃ÷ÊÇÊı×é³ÉÔ±
+					if(look.type == 507) {//'['Ëµ\C3\F7\CA\C7\CA\FD\D7\E9\B3\C9Ô±
 						v->list = parseArray();
 					}
 					v->type = t;
 					if(v->level == 0 && v->type->size == -1) {
-						ERROR(56);//Î´Íê³ÉÀàĞÍ
+						ERROR(56);//Î´\CD\EA\B3\C9\C0\E0\D0\CD
 					}
 					v->next = a->vars;
 					a->vars = v;
@@ -2590,9 +2595,9 @@ struct Type * parseTypeSpecifier() {//·ÖÎöÀàĞÍ
 					l->next = a->posi;
 					a->posi = l;
 					int s = calcSize(v);
-					if(s_or_u == 304) {//struct, ÒªÈ«²¿·ÖÅäÄÚ´æ
+					if(s_or_u == 304) {//struct, ÒªÈ«\B2\BF\B7\D6\C5\E4\C4Ú´\E6
 						a->size += s;
-					}else {//union, Ö»ĞèÒª×î´óµÄÄÚ´æ
+					}else {//union, Ö»\D0\E8Òª\D7\EE\B4\F3\B5\C4\C4Ú´\E6
 						a->size = max(a->size, s);
 					}
 					if(look.type == 503) {//','
@@ -2604,7 +2609,7 @@ struct Type * parseTypeSpecifier() {//·ÖÎöÀàĞÍ
 				if(look.type == 502) {
 					move();
 				}
-				if((t->type == 3 || t->type == 2) && t->name[0] == 0 && flag == 0) {//struct{struct{int a, b;}} x; x.a; x.b;ÕâÑùµÄ´úÂë.
+				if((t->type == 3 || t->type == 2) && t->name[0] == 0 && flag == 0) {//struct{struct{int a, b;}} x; x.a; x.b;\D5\E2\D1\F9\B5Ä´\FA\C2\EB.
 					struct Variable * v = t->vars, * v1;
 					int cur = 0;
 					while(v) {
@@ -2634,9 +2639,9 @@ struct Type * parseTypeSpecifier() {//·ÖÎöÀàĞÍ
 			move();
 			return a;
 		}else {
-			struct Type * t = find(structName.name);//²»¸ø³ö¶¨ÒåµÄstruct
+			struct Type * t = find(structName.name);//\B2\BB\B8\F8\B3\F6\B6\A8\D2\E5\B5\C4struct
 			if(!t) {
-				struct Type * a = (struct Type *)malloc(sizeof(struct Type));//³õÊ¼»¯Ò»¸öÀà
+				struct Type * a = (struct Type *)malloc(sizeof(struct Type));//\B3\F5Ê¼\BB\AFÒ»\B8\F6\C0\E0
 				a->next = top->QaQ;
 				top->QaQ = a;
 				a->size = -1;
@@ -2671,7 +2676,7 @@ struct Type * parseTypeSpecifier() {//·ÖÎöÀàĞÍ
 
 }
 
-struct Variable * findVariable(char * name) {//ÔÚ±äÁ¿±íÖĞÕÒÃû×Ö, ÕÒ²»µ½µ½ÉÏ²ã·ûºÅ±íÖĞÕÒ!
+struct Variable * findVariable(char * name) {//\D4Ú±\E4\C1\BF\B1\ED\D6\D0\D5\D2\C3\FB\D7\D6, \D5Ò²\BB\B5\BD\B5\BD\C9Ï²\E3\B7\FB\BAÅ±\ED\D6\D0\D5\D2!
 	struct SymbolList * s = top;
 	while(s) {
 		struct Variable * p = s->vars;
@@ -2686,7 +2691,7 @@ struct Variable * findVariable(char * name) {//ÔÚ±äÁ¿±íÖĞÕÒÃû×Ö, ÕÒ²»µ½µ½ÉÏ²ã·ûº
 	return 0;
 }
 
-struct Function * findFunc(char * name) {//ÔÚº¯Êı±íÖĞÕÒÃû×Ö
+struct Function * findFunc(char * name) {//\D4Úº\AF\CA\FD\B1\ED\D6\D0\D5\D2\C3\FB\D7\D6
 	struct SymbolList * s = top;
 	while(s) {
 		struct Function * p = s->funcs;
@@ -2724,12 +2729,12 @@ struct Function * findTopFunc(char * name) {
 	return 0;
 }
 
-int compFunc(struct Function * p, struct Function * q) {//±È½Ïº¯Êı¶¨Òå
-	if(!compType(p->rtn, q->rtn)) {//±È½Ï·µ»ØÖµÀàĞÍ
+int compFunc(struct Function * p, struct Function * q) {//\B1È½Ïº\AF\CA\FD\B6\A8\D2\E5
+	if(!compType(p->rtn, q->rtn)) {//\B1È½Ï·\B5\BB\D8Öµ\C0\E0\D0\CD
 		return 0;
 	}
 	struct Variable * v = p->argu, * u = q->argu;
-	for(;;) {//±È½Ï²ÎÊı¸öÊıºÍÀàĞÍ
+	for(;;) {//\B1È½Ï²\CE\CA\FD\B8\F6\CA\FD\BA\CD\C0\E0\D0\CD
 		if(!v && !u) {
 			return 1;
 		}
@@ -2785,9 +2790,13 @@ void parseElementInitialization(struct Function * env, struct Operand * v, int f
 				while(look.name[len]) {
 					len++;
 				}
-				printMalloc(env, constInt(sizeof(char) * (len + 1)));
-				env->insts->a = v;
-				printStringAssign(env, v);
+				struct Operand * res = printMalloc(env, constInt(sizeof(char) * (len + 1)));
+				if(v->type == 0) {
+					env->insts->a = v;
+				}else {
+					printAssign(env, v, res);
+				}
+				printStringAssign(env, getValue(env, v));
 			}else {
 				struct Operand * res = parseAssignmentExpression(env);
 				if(env == chief && (v->var->level && !(res->loadable || res->constant) || !v->var->level && !res->constant)) {
@@ -2825,7 +2834,7 @@ void parseInitialization(struct Function * env, struct Operand * v) {
 				}
 				tot *= v->var->list->mul / v->var->list->value;
 				while(look.type != 506) {
-					struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), v, constInt(tot * v->var->type->size));
+					struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), v, constInt(tot * calcElementSize(v->var)));
 					occupy(env, inst->a);			
 					inst->a->var->type = v->var->type;
 					inst->a->var->level = v->var->level;
@@ -2852,10 +2861,10 @@ void parseInitialization(struct Function * env, struct Operand * v) {
 
 void parseDeclaractionOrFunctionDefinition(struct Function * env);
 
-void parseStatement(int b, int a, struct Function * env) {//·ÖÎöÓï¾ä.
+void parseStatement(int b, int a, struct Function * env) {//\B7\D6\CE\F6\D3\EF\BE\E4.
 	//b: before, a:after
 	//printf("STA %d\n", env);
-	if(look.type == 505) {//'{'¸´ºÏÓï¾ä
+	if(look.type == 505) {//'{'\B8\B4\BA\CF\D3\EF\BE\E4
 		move();
 		top = newSymbolList(top);
 		while(look.type != 506) {//'}'
@@ -2869,92 +2878,92 @@ void parseStatement(int b, int a, struct Function * env) {//·ÖÎöÓï¾ä.
 		}
 		move();
 		top = top->prev;
-	}else if(look.type == 306) { //ifÓï¾ä
+	}else if(look.type == 306) { //if\D3\EF\BE\E4
 		move();
 		match(500);//'('
-		int after = newLabel();//±ê¼ÇelseÖ®Ç°µÄÎ»ÖÃ
+		int after = newLabel();//\B1\EA\BC\C7elseÖ®Ç°\B5\C4Î»\D6\C3
 
-		printIfFalseGoto(env, parseExpression(env), after);//²»Âú×ã¾ÍÌø!
+		printIfFalseGoto(env, parseExpression(env), after);//\B2\BB\C2\FA\D7\E3\BE\CD\CC\F8!
 		match(501);//')'
 		//printf("ifStatement\n");
-		parseStatement(b, a, env);//Âú×ãÊ±Ö´ĞĞµÄÓï¾ä
+		parseStatement(b, a, env);//\C2\FA\D7\E3Ê±Ö´\D0Ğµ\C4\D3\EF\BE\E4
 		//printf("ifStatement\n");
-		if(look.type == 307) {//elseÓï¾ä
+		if(look.type == 307) {//else\D3\EF\BE\E4
 			move();
-			int last = newLabel();//else½áÊøµÄÎ»ÖÃ
-			printGoto(env, last);//Âú×ãÊ±Ìø¹ıelse
-			printLabel(env, after);//±ê¼ÇelseÖ®Ç°µÄÎ»ÖÃ
-			parseStatement(b, a, env);//²»Âú×ãÊ±Ö´ĞĞµÄÓï¾ä
-			printLabel(env, last);//±ê¼Çelse½áÊøµÄÎ»ÖÃ
+			int last = newLabel();//else\BD\E1\CA\F8\B5\C4Î»\D6\C3
+			printGoto(env, last);//\C2\FA\D7\E3Ê±\CC\F8\B9\FDelse
+			printLabel(env, after);//\B1\EA\BC\C7elseÖ®Ç°\B5\C4Î»\D6\C3
+			parseStatement(b, a, env);//\B2\BB\C2\FA\D7\E3Ê±Ö´\D0Ğµ\C4\D3\EF\BE\E4
+			printLabel(env, last);//\B1\EA\BC\C7else\BD\E1\CA\F8\B5\C4Î»\D6\C3
 		}else {
-			printLabel(env, after);//Ã»ÓĞelse, Ö±½Ó±ê¼Ç½áÊøÎ»ÖÃ.
+			printLabel(env, after);//Ã»\D3\D0else, Ö±\BDÓ±\EA\BCÇ½\E1\CA\F8Î»\D6\C3.
 		}
 	}else if(look.type == 309) {//for
 		move();
 		match(500);//'('
-		int body = newLabel(), begin = newLabel(), after = newLabel();//Ñ­»·k¿ØÖÆÎ»ÖÃ, Ñ­»·±äÁ¿±ä¸üÎ»ÖÃ, Ñ­»·½áÊøÎ»ÖÃ
+		int body = newLabel(), begin = newLabel(), after = newLabel();//Ñ­\BB\B7k\BF\D8\D6\C6Î»\D6\C3, Ñ­\BB\B7\B1\E4\C1\BF\B1\E4\B8\FCÎ»\D6\C3, Ñ­\BB\B7\BD\E1\CA\F8Î»\D6\C3
 		if(look.type == 502) {
-			//Ö§³Ö²»³õÊ¼»¯!
+			//Ö§\B3Ö²\BB\B3\F5Ê¼\BB\AF!
 		}else {
-			parseExpression(env);//·ÖÎöÑ­»·³õÊ¼»¯±í´ïÊ½
+			parseExpression(env);//\B7\D6\CE\F6Ñ­\BB\B7\B3\F5Ê¼\BB\AF\B1\ED\B4\EFÊ½
 		}
 		match(502);//';'
-		printLabel(env, body);//±ê¼ÇÑ­»·¿ØÖÆÎ»ÖÃ
+		printLabel(env, body);//\B1\EA\BC\C7Ñ­\BB\B7\BF\D8\D6\C6Î»\D6\C3
 		if(look.type == 502) {
-			printIfFalseGoto(env, constInt(1), after);//Ö§³ÖËÀÑ­»·
+			printIfFalseGoto(env, constInt(1), after);//Ö§\B3\D6\CB\C0Ñ­\BB\B7
 		}else {
-			printIfFalseGoto(env, parseExpression(env), after);//·ÖÎöÑ­»·¿ØÖÆ±í´ïÊ½, ²»Âú×ã¾Í½áÊø
+			printIfFalseGoto(env, parseExpression(env), after);//\B7\D6\CE\F6Ñ­\BB\B7\BF\D8\D6Æ±\ED\B4\EFÊ½, \B2\BB\C2\FA\D7\E3\BEÍ½\E1\CA\F8
 		}
 		match(502);//';'
-		struct Function * tmp = (struct Function *)malloc(sizeof(struct Function));//¸´ÖÆº¯Êı»·¾³
+		struct Function * tmp = (struct Function *)malloc(sizeof(struct Function));//\B8\B4\D6Æº\AF\CA\FD\BB\B7\BE\B3
 		*tmp = *env;
 		tmp->insts = 0;
 		if(look.type == 501) {//')'
-			//Ö§³ÖËÀÑ­»·
+			//Ö§\B3\D6\CB\C0Ñ­\BB\B7
 		}else {
-			parseExpression(tmp);//·ÖÎöÑ­»·±äÁ¿±ä¸ü±í´ïÊ½
+			parseExpression(tmp);//\B7\D6\CE\F6Ñ­\BB\B7\B1\E4\C1\BF\B1\E4\B8\FC\B1\ED\B4\EFÊ½
 		}
 		match(501);//')'
-		parseStatement(begin, after, env);//·ÖÎöÑ­»·Ìå
-		printLabel(env, begin);//Ñ­»·±äÁ¿±ä¸ü¿ªÊ¼
+		parseStatement(begin, after, env);//\B7\D6\CE\F6Ñ­\BB\B7\CC\E5
+		printLabel(env, begin);//Ñ­\BB\B7\B1\E4\C1\BF\B1\E4\B8\FC\BF\AAÊ¼
 		if(tmp->insts) {
-			struct Instruction * p = tmp->insts;//¸´ÖÆÑ­»·±äÁ¿±ä¸ü´úÂë
+			struct Instruction * p = tmp->insts;//\B8\B4\D6\C6Ñ­\BB\B7\B1\E4\C1\BF\B1\E4\B8\FC\B4\FA\C2\EB
 			while(p->next) {
 				p = p->next;
 			}
 			p->next = env->insts;
 			env->insts = tmp->insts;
 		}
-		printGoto(env, body);//Ìøµ½Ñ­»·¿ØÖÆÎ»ÖÃ
-		printLabel(env, after);//±ê¼ÇÑ­»·½áÊø
+		printGoto(env, body);//\CC\F8\B5\BDÑ­\BB\B7\BF\D8\D6\C6Î»\D6\C3
+		printLabel(env, after);//\B1\EA\BC\C7Ñ­\BB\B7\BD\E1\CA\F8
 	}else if(look.type == 308) {//while
 		move();
 		match(500);//'('
-		int begin = newLabel(), after = newLabel();//Ñ­»·¿ØÖÆÎ»ÖÃ, Ñ­»·½áÊøÎ»ÖÃ
-		printLabel(env, begin);//±ê¼ÇÑ­»·¿ØÖÆ¿ªÊ¼Î»ÖÃ
+		int begin = newLabel(), after = newLabel();//Ñ­\BB\B7\BF\D8\D6\C6Î»\D6\C3, Ñ­\BB\B7\BD\E1\CA\F8Î»\D6\C3
+		printLabel(env, begin);//\B1\EA\BC\C7Ñ­\BB\B7\BF\D8\D6Æ¿\AAÊ¼Î»\D6\C3
 		if(look.type == 501) {//')'
-			ERROR(71);//Ö§³ÖËÀÑ­»·²Å¹Ö!
-			printIfFalseGoto(env, constInt(1), after);//Ö§³ÖËÀÑ­»·²Å¹Ö!
+			ERROR(71);//Ö§\B3\D6\CB\C0Ñ­\BB\B7\B2Å¹\D6!
+			printIfFalseGoto(env, constInt(1), after);//Ö§\B3\D6\CB\C0Ñ­\BB\B7\B2Å¹\D6!
 		}else {
-			printIfFalseGoto(env, parseExpression(env), after);//²»Âú×ã¾Í½áÊø
+			printIfFalseGoto(env, parseExpression(env), after);//\B2\BB\C2\FA\D7\E3\BEÍ½\E1\CA\F8
 		}
 		match(501);//')'
-		parseStatement(begin, after, env);//·ÖÎöÑ­»·Ìå
+		parseStatement(begin, after, env);//\B7\D6\CE\F6Ñ­\BB\B7\CC\E5
 		printGoto(env, begin);
-		printLabel(env, after);//±ê¼Ç½áÊøÎ»ÖÃ
+		printLabel(env, after);//\B1\EA\BCÇ½\E1\CA\F8Î»\D6\C3
 	}else if(look.type == 311) {//break
 		if(a == -1) {
 			ERROR(72);
 		}
 		move();
-		printGoto(env, a);//Ìøµ½after´¦, ¼´forºÍwhileµÄ½áÊøÎ»ÖÃ
+		printGoto(env, a);//\CC\F8\B5\BDafter\B4\A6, \BC\B4for\BA\CDwhile\B5Ä½\E1\CA\F8Î»\D6\C3
 		match(502);//';'
 	}else if(look.type == 310) {//continue
 		if(b == -1) {
 			ERROR(73);
 		}
 		move();
-		printGoto(env, b);//Ìøµ½begin´¦, ¼´forµÄÑ­»·±äÁ¿±ä¸üÎ»ÖÃ, whileµÄÑ­»·¿ØÖÆÎ»ÖÃ.
+		printGoto(env, b);//\CC\F8\B5\BDbegin\B4\A6, \BC\B4for\B5\C4Ñ­\BB\B7\B1\E4\C1\BF\B1\E4\B8\FCÎ»\D6\C3, while\B5\C4Ñ­\BB\B7\BF\D8\D6\C6Î»\D6\C3.
 		match(502);//';'
 	}else if(look.type == 312) {//return!
 		move();
@@ -2964,7 +2973,7 @@ void parseStatement(int b, int a, struct Function * env) {//·ÖÎöÓï¾ä.
 			printVoidReturn(env); 
 		}
 		match(502);
-	}else {//±í´ïÊ½Óï¾ä.
+	}else {//\B1\ED\B4\EFÊ½\D3\EF\BE\E4.
 		//printf("expSta %d\n", env);
 		if(look.type == 502) {
 			move();
@@ -2980,7 +2989,7 @@ void parseStatement(int b, int a, struct Function * env) {//·ÖÎöÓï¾ä.
 
 void parseFunctionBody(struct Function * env) {
 	top = env->symbolList;
-	struct Variable * p = env->argu, * p1;//¸´ÖÆ²ÎÊıÎª³õÊ¼±äÁ¿±í
+	struct Variable * p = env->argu, * p1;//\B8\B4\D6Æ²\CE\CA\FDÎª\B3\F5Ê¼\B1\E4\C1\BF\B1\ED
 	env->argu = 0;
 	while(p) {
 		p1 = p->next;
@@ -3007,11 +3016,11 @@ void parseFunctionBody(struct Function * env) {
 	}	
 	move();
 	while(look.type != 506) {//'}'
-		if(look.type >= 301 && look.type <= 305) {//ÊÇvoid char int struct unionÖĞµÄÒ»¸ö
+		if(look.type >= 301 && look.type <= 305) {//\CA\C7void char int struct union\D6Ğµ\C4Ò»\B8\F6
 			parseDeclaractionOrFunctionDefinition(env);
 		}else {
 			//printf("FB %d\n", env);
-			parseStatement(-1, -1, env);//·ñÔò.
+			parseStatement(-1, -1, env);//\B7\F1\D4\F2.
 			//printf("FB %d\n", env);
 		}
 	}
@@ -3026,7 +3035,7 @@ struct Function * parseArguments(struct Function * env) {
 	top = f->symbolList;
 	for(; look.type != 501;) { //')'
 		struct Type * p = parseTypeSpecifier();
-		struct Variable * v = parsePlainDeclarator(1);//ÔÊĞíÄäÃû
+		struct Variable * v = parsePlainDeclarator(1);//\D4\CA\D0\ED\C4\E4\C3\FB
 		if(v->level == 0 && v->type == VOID_TYPE || v->name[0] != 0 && findTopVariable(v->name)) {
 			ERROR(74);
 		}
@@ -3035,7 +3044,7 @@ struct Function * parseArguments(struct Function * env) {
 		}
 		v->type = p;
 		v->next = top->vars;
-		top->vars = v;//·´Ïò²ÎÊı±í!!!!!!!!!!!!!!!!!!!!!!!!!
+		top->vars = v;//\B7\B4\CF\F2\B2\CE\CA\FD\B1\ED!!!!!!!!!!!!!!!!!!!!!!!!!
 		if(look.type == 503) {//','
 			move();
 		}
@@ -3050,7 +3059,7 @@ struct Function * parseArguments(struct Function * env) {
 		top->vars = tmp;
 		tmp = tmp1;
 	}
-	f->argu = top->vars;//·ûºÅ±í°üº¬fµÄ²ÎÊı!
+	f->argu = top->vars;//\B7\FB\BAÅ±\ED\B0\FC\BA\ACf\B5Ä²\CE\CA\FD!
 	top = top->prev;//!!
 	return f;
 }
@@ -3058,7 +3067,7 @@ struct Function * parseArguments(struct Function * env) {
 void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 	int i = 0;
 	//printf("Func Def");
-	struct Type * t = parseTypeSpecifier();//·ÖÎöÀàĞÍ
+	struct Type * t = parseTypeSpecifier();//\B7\D6\CE\F6\C0\E0\D0\CD
 	//	if(t->size == -1) {
 	//		match(502);//';'
 	//		return;
@@ -3067,31 +3076,31 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 	for(;look.type != 502;) {//';'
 		i++;
 		//printf("Func Def");
-		struct Variable * v = parsePlainDeclarator(0);//·ÖÎöÁËÖ¸ÕëµÄ²ãÊı, ²»ÔÊĞíÄäÃû
+		struct Variable * v = parsePlainDeclarator(0);//\B7\D6\CE\F6\C1\CBÖ¸\D5\EB\B5Ä²\E3\CA\FD, \B2\BB\D4\CA\D0\ED\C4\E4\C3\FB
 		if(t->size == -1 && !v->level) {
 			ERROR(92);
 		}
 		//printf("Func Def3\n");
 		//printf("parse FUNCTION\n");
 		v->type = t;
-		if(look.type == 500) {//'('ËµÃ÷ÊÇº¯Êı
+		if(look.type == 500) {//'('Ëµ\C3\F7\CAÇº\AF\CA\FD
 			//printf("parse FUNCTION\n");
-			if(findTopVariable(v->name)) {//º¯Êı²»ÄÜºÍ±äÁ¿ÖØÃû
+			if(findTopVariable(v->name)) {//\BA\AF\CA\FD\B2\BB\C4ÜºÍ±\E4\C1\BF\D6\D8\C3\FB
 				ERROR(150000);
 			}
 			//printf("parse FUNCTION\n");
 			//printf("Func Def");
-			struct Function * f = parseArguments(env);//·ÖÎöº¯ÊıµÄ²ÎÊı
-			f->name = v->name;//º¯ÊıµÄÃû×Ö
+			struct Function * f = parseArguments(env);//\B7\D6\CE\F6\BA\AF\CA\FD\B5Ä²\CE\CA\FD
+			f->name = v->name;//\BA\AF\CA\FD\B5\C4\C3\FB\D7\D6
 			//printf("Func Def %s\n", f->name);
-			f->rtn = v;//º¯ÊıµÄ·µ»ØÖµÀàĞÍ
-			struct Function * p = findTopFunc(f->name);//Ñ°ÕÒµ±Ç°²ãº¯Êı±í, ÓĞÃ»ÓĞÒ»ÑùµÄº¯Êı
+			f->rtn = v;//\BA\AF\CA\FD\B5Ä·\B5\BB\D8Öµ\C0\E0\D0\CD
+			struct Function * p = findTopFunc(f->name);//Ñ°\D5Òµ\B1Ç°\B2ãº¯\CA\FD\B1\ED, \D3\D0Ã»\D3\D0Ò»\D1\F9\B5Äº\AF\CA\FD
 
 			//printf("p = %d\n", p);
-			if(p && !compFunc(p, f)) {//²»ÄÜÃû×ÖÒ»Ñù¶¨ÒåÈ´²»Í¬
+			if(p && !compFunc(p, f)) {//\B2\BB\C4\DC\C3\FB\D7\D6Ò»\D1\F9\B6\A8\D2\E5È´\B2\BBÍ¬
 				ERROR(76);
 			}
-			if(!p) {//Ã»ÓĞÖØÃûµÄº¯Êı
+			if(!p) {//Ã»\D3\D0\D6\D8\C3\FB\B5Äº\AF\CA\FD
 				f->next = top->funcs;
 				top->funcs = f;
 				funcList = newFuncList(f, funcList);
@@ -3100,29 +3109,29 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 				p->symbolList = f->symbolList;
 				f = p;
 			}
-			if(look.type == 505) {//'{'ËµÃ÷ÊÇº¯Êı¶¨Òå
+			if(look.type == 505) {//'{'Ëµ\C3\F7\CAÇº\AF\CA\FD\B6\A8\D2\E5
 				//printf("REAL DEF\n");
-				if(f->insts || i != 1) {//²»ÄÜÖØ¸´¶¨Òåº¯Êı, º¯Êı¶¨Òå±ØĞë¶ÀÕ¼type-specifier.
+				if(f->insts || i != 1) {//\B2\BB\C4\DC\D6Ø¸\B4\B6\A8\D2åº¯\CA\FD, \BA\AF\CA\FD\B6\A8\D2\E5\B1\D8\D0\EB\B6\C0Õ¼type-specifier.
 					ERROR(77);
 				}
 				printNOP(f);
 				//printf("REAL DEF\n");
-				parseFunctionBody(f);//·ÖÎöº¯Êı¹ı³Ì.
+				parseFunctionBody(f);//\B7\D6\CE\F6\BA\AF\CA\FD\B9\FD\B3\CC.
 				//printf("REAL DEF\n");
-				return;//º¯Êı¶¨Òå±ØĞë¶ÀÕ¼type-specifier
+				return;//\BA\AF\CA\FD\B6\A8\D2\E5\B1\D8\D0\EB\B6\C0Õ¼type-specifier
 			}else {
-				//ÖØ¸´ÉùÃ÷º¯Êı, Ê²Ã´Ò²²»×ö.
+				//\D6Ø¸\B4\C9\F9\C3\F7\BA\AF\CA\FD, Ê²Ã´Ò²\B2\BB\D7\F6.
 			}
-		}else {//²»ÊÇº¯Êı
+		}else {//\B2\BB\CAÇº\AF\CA\FD
 			if(findTopVariable(v->name) || findTopFunc(v->name)) {
 				ERROR(78);
 			}
 			v->next = top->vars;
 			top->vars = v;
-			if(look.type == 507) {//'['ËµÃ÷ÊÇÊı×éÀàĞÍ
-				v->list = parseArray();//·ÖÎöÊı×éµÄÎ¬¶È
+			if(look.type == 507) {//'['Ëµ\C3\F7\CA\C7\CA\FD\D7\E9\C0\E0\D0\CD
+				v->list = parseArray();//\B7\D6\CE\F6\CA\FD\D7\E9\B5\C4Î¬\B6\C8
 			}
-			if(v->type == VOID_TYPE && v->level == 0) {//²»ÄÜ¶¨ÒåvoidÀàĞÍµÄ±äÁ¿
+			if(v->type == VOID_TYPE && v->level == 0) {//\B2\BB\C4Ü¶\A8\D2\E5void\C0\E0\D0ÍµÄ±\E4\C1\BF
 				ERROR(79);
 			}
 			if(v->list || isStruct(v)) {
@@ -3138,23 +3147,23 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 			}
 			occupy(env, directLvalue(v));
 			//printf("!!\n");
-			/*			if(env == chief) {//ËµÃ÷ÊÇÈ«¾Ö±äÁ¿
+			/*			if(env == chief) {//Ëµ\C3\F7\CA\C7È«\BEÖ±\E4\C1\BF
 
-						printFillZero(env, directLvalue(v));//½«vËùÕ¼È«²¿ÄÚ´æÇå0
+						printFillZero(env, directLvalue(v));//\BD\ABv\CB\F9Õ¼È«\B2\BF\C4Ú´\E6\C7\E50
 			//printf("!!2\n");
 
 			}*/
-			if(look.type == 504) {//'='ËµÃ÷ÓĞ³õÊ¼»¯
+			if(look.type == 504) {//'='Ëµ\C3\F7\D3Ğ³\F5Ê¼\BB\AF
 				if(env == chief && (v->list || isStruct(v))) {
 					printFillZero(env, directLvalue(v));
 				}
 				move();//'='
-				parseInitialization(env, directLvalue(v));//·ÖÎö±äÁ¿vµÄ³õÊ¼»¯
+				parseInitialization(env, directLvalue(v));//\B7\D6\CE\F6\B1\E4\C1\BFv\B5Ä³\F5Ê¼\BB\AF
 			}else if(env == chief) {
 				printFillZero(env, directLvalue(v));
 			}
 		}
-		if(look.type != 502) {//','ËµÃ÷»¹ÓĞºóĞøÉùÃ÷
+		if(look.type != 502) {//','Ëµ\C3\F7\BB\B9\D3Ğº\F3\D0\F8\C9\F9\C3\F7
 			match(503);
 		}
 	}
@@ -3165,15 +3174,15 @@ char CHIEF[6] = "chief";
 
 void parseProgram() {
 	TMP.value = TMP.mul = 1;
-	chief = newFunction();//Ö÷¹ı³Ì
+	chief = newFunction();//\D6\F7\B9\FD\B3\CC
 	funcList = newFuncList(chief, 0);
 	chief->name = CHIEF;
 	chief->symbolList = newSymbolList(top);
 	top = chief->symbolList;
-	bucket = newFunction();//À¬»øÍ°
-	printNOP(chief);//ĞÂ½¨Ò»¸ö¿Õ²Ù×÷.
+	bucket = newFunction();//\C0\AC\BB\F8Í°
+	printNOP(chief);//\D0Â½\A8Ò»\B8\F6\BFÕ²\D9\D7\F7.
 	printNOP(bucket);
-	int begin = newLabel(), end = newLabel();//Ö÷³ÌĞòµÄ¿ªÊ¼ºÍ½áÊø±êÇ©
+	int begin = newLabel(), end = newLabel();//\D6\F7\B3\CC\D0\F2\B5Ä¿\AAÊ¼\BAÍ½\E1\CA\F8\B1\EAÇ©
 	printLabel(chief, begin);
 	look1 = nextToken();
 	move();
@@ -3181,14 +3190,14 @@ void parseProgram() {
 		parseDeclaractionOrFunctionDefinition(chief);
 	}
 	printLabel(chief, end);
-	//chief->insts¼´ÎªÖ÷³ÌĞòµÄÖ¸ÁîĞòÁĞ(µ¹Ğò)
+	//chief->insts\BC\B4Îª\D6\F7\B3\CC\D0\F2\B5\C4Ö¸\C1\EE\D0\F2\C1\D0(\B5\B9\D0\F2)
 }
 
 struct Instruction ** jumpTo;
 
 struct List * arguStack;
 
-void reverse(struct Function * f) {//·´ÏòÖ¸Áî±í, fetch label
+void reverse(struct Function * f) {//\B7\B4\CF\F2Ö¸\C1\EE\B1\ED, fetch label
 	struct Instruction * tmp = f->insts, * tmp1;
 	f->insts = 0;
 	while(tmp) {
@@ -3450,7 +3459,7 @@ int run(struct Function * f) {
 	return res;
 }
 
-int stopAtLexer = 0, stopAt3AddrCode = 1, interpreter = 1;
+int stopAtLexer = 0, stopAt3AddrCode = 0, interpreter = 0;
 
 int main() {
 	//	freopen("gadget.c", "r", stdin);
@@ -3462,7 +3471,7 @@ int main() {
 	int capacity = 10;
 	char c;	
 	int i = 0;
-	for(; __stdio__printf__[i]; i++) {//±ê×¼¿âprintf
+	for(; __stdio__printf__[i]; i++) {//\B1\EA×¼\BF\E2printf
 		push_back(&program, &length, &capacity, __stdio__printf__[i]);
 	}
 	while(-1 != (c = getchar())) {
