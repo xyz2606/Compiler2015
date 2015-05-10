@@ -730,6 +730,7 @@ struct FuncList {
 struct FuncList * newFuncList(struct Function * f, struct FuncList * next) {
 	struct FuncList * res = (struct FuncList *)malloc(sizeof(struct FuncList));
 	res->f = f;
+	res->blocks = 0;
 	res->next = next;
 	return res;
 }
@@ -3461,8 +3462,6 @@ int run(struct Function * f) {
 	return res;
 }
 
-int stopAtLexer = 0, stopAt3AddrCode = 0, interpreter = 0;
-
 struct InterCodeOperand {
 	int var;
 	int idx;
@@ -3493,7 +3492,7 @@ struct InterCode * newInterCode() {
 	return res;
 }
 
-int nBlocks = 0;
+int nBlocks = 0, clck = 0;
 struct Block {
 	int visit;
 	int index;
@@ -3512,10 +3511,10 @@ struct Block * newBlock() {
 }
 
 void dfs(struct Block * blk, int rtn) {
-    if(blk->visit) {
+    if(blk->visit == clck) {
         return;
     }
-    blk->visit = 1;
+    blk->visit = clck;
     struct List * lst = newList();
     lst->next = blk->sources;
     blk->sources = lst;
@@ -3561,22 +3560,22 @@ struct InterCode * convertToInterCode(struct Instruction * inst) {
 
 void printInterCodeOperand(struct InterCodeOperand * ope) {
 	if(ope->var == -1) {
-		printf("(const)");
+		printf("(const)%d", ope->idx);
 	}else {
-		printf("MEM[%d]", ope->var);
+		printf("MEM[%d]<%d>", ope->var, ope->idx);
 	}
 }
 struct Block ** jumpToBlock;
 void printInterCode(struct InterCode * inc) {
 	char * s1 = 0, * s2 = 0, * s3 = 0;
 	if(inc->type == GET_ARGU) {
-		s1 = "get_argument";
+		s1 = "get_argument ";
 	}else if(inc->type == DECL_POINTER) {
-		s1 = "declarate pointer";
+		s1 = "declarate pointer ";
 	}else if(inc->type == DECL_CHAR) {
-		s1 = "declarate char";
+		s1 = "declarate char ";
 	}else if(inc->type == DECL_INT) {
-		s1 = "declarate int";
+		s1 = "declarate int ";
 	}else if(inc->type == MALLOC) {
 		s2 = " = malloc ";
 	}else if(inc->type == GETCHAR) {
@@ -3615,7 +3614,7 @@ void printInterCode(struct InterCode * inc) {
 	}else if(inc->type == ASSIGN_CHAR) {
 		s2 = " =(char) ";
 	}else if(inc->type == ASSIGN_ADDRESS) {
-		s2 = " =(address) "; s3 = " || ";
+		s2 = " =(address) ";
 	}else if(inc->type == ASSIGN_INCLUSIVE_OR) {
 		s2 = " = "; s3 = " | ";
 	}else if(inc->type == ASSIGN_EXCLUSIVE_OR) {
@@ -3710,15 +3709,19 @@ int isJump(int x) {
 	return x == IF_GOTO || x == IF_FALSE_GOTO || x == GOTO;
 }
 int isAssign(int x) {
+	//printf("?");
 	return x == GET_ARGU || x == MALLOC || x == GETCHAR 
 	|| x == ASSIGN_DEREF_CHAR || x == ASSIGN_DEREF || x == ASSIGN_DEREF_ADDRESS 
 	|| x == ASSIGN || x == ASSIGN_LOGICAL_NOT || x == ASSIGN_NOT || x == ASSIGN_NEGATE || x == ASSIGN_CHAR
 	|| x == ASSIGN_ADDRESS || x == ASSIGN_INCLUSIVE_OR || x == ASSIGN_EXCLUSIVE_OR || x == ASSIGN_AND
 	|| x == ASSIGN_SHR || x == ASSIGN_SHL || x == ASSIGN_SUB || x == CALL || x == ASSIGN_MOD || x == ASSIGN_DIV
-	|| x == ASSIGN_MUL || x == ASSIGN_NOT_EQUAL_TO || x == ASSIGN_EQUAL_TO || ASSIGN_GREATER_THAN_OR_EQUAL_TO
-	|| ASSIGN_LESS_THAN_OR_EQUAL_TO || x == ASSIGN_GREATER_THAN || x == ASSIGN_LESS_THAN || x == ASSIGN_LOGIC_OR
-	|| x == ASSIGN_LOGIC_AND || x == INT_TO_CHAR || x == CHAR_TO_INT || x == ASSIGN_ADDRESS_OF;
+	|| x == ASSIGN_MUL || x == ASSIGN_NOT_EQUAL_TO || x == ASSIGN_EQUAL_TO || x == ASSIGN_GREATER_THAN_OR_EQUAL_TO
+	|| x == ASSIGN_LESS_THAN_OR_EQUAL_TO || x == ASSIGN_GREATER_THAN || x == ASSIGN_LESS_THAN || x == ASSIGN_LOGIC_OR
+	|| x == ASSIGN_LOGIC_AND || x == INT_TO_CHAR || x == CHAR_TO_INT || x == ASSIGN_ADDRESS_OF || x == ASSIGN_ADD;
 }
+
+int stopAtLexer = 0, stopAt3AddrCode = 1, interpreter = 0;
+
 int main() {
 	//	freopen("gadget.c", "r", stdin);
 	examine = 1;
@@ -3848,11 +3851,16 @@ int main() {
  			}
 			p = p->next;
 		}
+		
 		p = funcList;//给basic block连边, 做cfg.
 		while(p) {
+			//printf("block\n");
+
 			struct Block * blk = p->blocks,  * prevBlock = 0;
-            
+			//printf("block!\n");
+
 			while(blk) {
+				//printf("block %d\n", blk->index);
 				if(blk->incs) {
 					if(blk->incs->type == IF_GOTO || blk->incs->type == IF_FALSE_GOTO) {
 						blk->edges[0] = jumpToBlock[blk->incs->n];
@@ -3863,26 +3871,39 @@ int main() {
 						blk->edges[0] = prevBlock;
 					}
 				}
+				//printf("block %d\n", blk->index);
+				
 				struct InterCode * inc = blk->incs, *inc1;//把指令顺序正过来
 				blk->incs = 0;
 				while(inc) {
+					//printInterCode(inc);
 					inc1 = inc->next;
 					inc->next = blk->incs;
 					blk->incs = inc;
 					inc = inc1;
 				}
 				prevBlock = blk;
+				//printf("block %d\n", blk->index);
+				
 				blk = blk->next;
+//								printf("block %d\n", blk);
+
 			}
+			//	printf("block\n");
 			blk = p->blocks;
+			//	printf("block\n");
 			p->blocks = 0;
+			//	printf("block\n");
 			while(blk) {//把blocks的顺序正过来
 				prevBlock = blk->next;
 				blk->next = p->blocks;
 				p->blocks = blk;
 				blk = prevBlock;
 			}
+			//				printf("block\n");
+
 			p = p->next;
+			//printf("%d\n", p);
 		}
 		for(i = 0; i < totIndex; i++) {//枚举变量.
 			int cnt = 0;
@@ -3892,17 +3913,24 @@ int main() {
 				int occur = 0;
 				struct Block * blk = p->blocks;
 				while(blk) {
+					//printf("block[%d]", blk->index);
 					struct InterCode * inc = blk->incs;
 					while(inc) {
+						//printf("Inc[%d] %d", inc->type, isAssign(inc->type));
 						if(inc->type == ASSIGN_ADDRESS_OF && inc->a->var == i) {
 							cnt += 2;
 							break;
+							//printf("aao");
 						}else if(isAssign(inc->type) && inc->a->var == i) {
 							occur = 1;
 							cur = p;
+							//printf("ass");
+						}else {
+							//printf("nor");
 						}
 						inc = inc->next;
 					}
+					//printf("[/block]");
 					blk = blk->next;
 				}
 				cnt += occur;
@@ -3912,6 +3940,7 @@ int main() {
 				}
 				p = p->next;
 			}
+			//printf("%d %d\n", i, cnt);
 			if(cnt == 1) {//仅出现在一个函数中的变量, 而且没有被取地址!
 				struct Block * blk;
 				struct InterCode * inc;
@@ -3922,7 +3951,7 @@ int main() {
 					blk->rtn = -1;
 					blk->visit = 0;
 					while(inc) {
-						if(isAssign(inc->type)) {
+						if(isAssign(inc->type) && inc->a->var == i) {
 							inc->a->idx = stamp++;
 							blk->rtn = stamp - 1;//出block时的副本的戳.
 						}
@@ -3931,7 +3960,7 @@ int main() {
 					blk->sources = 0;
 					blk = blk->next;
 				}
-				blk = p->blocks;
+				blk = cur->blocks;
 				while(blk) {
 					inc = blk->incs;
 					int used = 0;
@@ -3950,10 +3979,13 @@ int main() {
 						}
 						inc = inc->next;
 					}//判断是否用到过.
+					//printf("blk = %d, var = %d, rtn = %d\n", blk->index, i, blk->rtn);
 					if(blk->rtn != -1) {
 						int j;
 						for(j = 0; j < 2; j++) {
 							if(blk->edges[j]) {
+								clck++;
+								//printf("clck = %d\n", clck);
 								dfs(blk->edges[j], blk->rtn);//副本传递
 							}
 						}
@@ -3961,18 +3993,26 @@ int main() {
 					blk->used = used;
 					blk = blk->next;
 				}
-				blk = p->blocks;
+				//printf("!!\n");
+				blk = cur->blocks;
 				while(blk) {
 					if(blk->used) {
 						int source = -1;
 						struct List * lst = blk->sources;
 						if(lst) {
+							//printf("1\n");
 							if(lst->next) {
+								//printf("2\n");
 								source = lst->value;
 								lst = lst->next;
 								while(lst) {
+									//printf("3\n");
 									struct InterCode * inc = newInterCode();
 									inc->type = PHI;
+									inc->a = newInterCodeOperand();
+									inc->b = newInterCodeOperand();
+									inc->c = newInterCodeOperand();
+									
 									inc->a->var = inc->b->var = inc->c->var = i;
 									inc->a->idx = stamp++;
 									inc->b->idx = source;
