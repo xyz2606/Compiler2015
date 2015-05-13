@@ -11,7 +11,7 @@ char * newEmptyString() {
 	return res;
 }
 
-char __stdio__printf__[11111] = 
+char __stdio__printf__[888] = 
 "void __printf__(char * str, int * argu) { int index = 0; while(*str) { if(*str == '%') { str[0]; str++; if(str[0] == '%') { putchar('%'); }else if(str[0] == 'c') { putchar((char)argu[index++]); }else if(str[0] == 's') { char * s = (char *)argu[index++]; while(*s) { putchar(*s); s++; } }else if(str[0] == 'd') { putint(argu[index++]); }else if(str[0] == '.') { int x = str[1] - '0'; int cnt = 0, tmp, flag = 0; if(argu[index] < 0) { argu[index] = -argu[index]; flag = 1; } tmp = argu[index]; if(flag) { putchar('-'); } cnt = tmp == 0; while(tmp) {cnt++; tmp /= 10;} while(x > cnt) {putchar('0'); x--;} putint(argu[index++]); str += 2; } }else { putchar(*str); } str++; } }\nvoid __memset__(char * a, int len) {while(len) {*a = '\\0'; a++; len--; } } \nvoid __memcpy__(char * a, char * b, int len) {while(len) {*a = *b; a++; b++; len--;} }\n";
 //
 //ERROR
@@ -21,7 +21,7 @@ char _c___memcpy__[20] = "__memcpy__";
 
 char * bp, * program;
 
-int errorPainting = 0;
+int errorPainting = 1;
 
 void ERROR(int label) {
 
@@ -682,6 +682,7 @@ struct Operand {
 	int type;//0 ֱ\BD\D3\D7\F3ֵ, 1 \BD\E2\D2\FD\D3\C3\D7\F3ֵ, 2 \D3\D2ֵ
 	struct Variable * var;//\B2\D9\D7\F7\CA\FD\BAͱ\E4\C1\BF\C0\E0\D0\CD
 	int loadable;
+	int offset;
 };
 
 int nLabel = 0;
@@ -707,6 +708,7 @@ struct Operand * newOperand(struct Variable * var, int type, int constant, int v
 	res->value = value;
 	res->var = var;
 	res->loadable = 0;
+	res->offset = 0;
 	return res;
 }
 
@@ -829,7 +831,11 @@ int
 	ASSIGN_DEREF_ADDRESS = 48,
 	ASSIGN_DEREF_CHAR = 49,
 	PUTINT = 50,
-	PHI = 51;
+	PHI = 51,
+	LD = 52,
+	LD_CHAR = 53,
+	ST = 54,
+	ST_CHAR = 55;
 void printOperand(struct Operand * ope) {
 	//	if(ope->type == 0 && ope->var->name && ope->var->name[0]) {
 	//		printf("%s", ope->var->name);
@@ -950,6 +956,14 @@ void printIntermediateCode(struct Instruction * inst) {
 		printOperand(inst->a), printf(" = call %s %d\n", inst->f->name, inst->n);
 	}else if(inst->type == ARGU) {
 		printf("argu "), printOperand(inst->a), printf("\n");
+	}else if(inst->type == LD) {
+		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("[%d]\n", inst->b->offset);
+	}else if(inst->type == LD_CHAR) {
+		printOperand(inst->a), printf(" = (char *)"), printOperand(inst->b), printf("[%d]\n", inst->b->offset);
+	}else if(inst->type == ST) {
+		printOperand(inst->a), printf("[%d] = ", inst->a->offset), printOperand(inst->b), printf("\n");
+	}else if(inst->type == ST_CHAR) {
+		printf("(char *)"), printOperand(inst->a), printf("[%d] = ", inst->a->offset), printOperand(inst->b), printf("\n");
 	}else {
 		printf("\n\n???instruction???%d\n\n", inst->type);
 	}
@@ -979,13 +993,12 @@ struct Operand * getValue(struct Function * env, struct Operand * a) {
 		struct Instruction * inst = newInstruction(0, newOperand(newVariable(), 2, 0, 0), a, 0);
 		occupy(env, inst->a);
 		copyType(inst->a->var, a->var);
-		if(a->var->level) {
-			inst->type = ASSIGN_DEREF_ADDRESS;
-		}else if(a->var->type == CHAR_TYPE) {
-			inst->type = ASSIGN_DEREF_CHAR;
-		}else if(a->var->type == INT_TYPE) {
-			inst->type = ASSIGN_DEREF;
+		if(!a->var->level && a->var->type == CHAR_TYPE) {
+			inst->type = LD_CHAR;
+		}else if(a->var->level || a->var->type == INT_TYPE) {
+			inst->type = LD;
 		}else {
+			printf("Why Error??\n");
 			ERROR(14);
 		}
 		push(env, inst);
@@ -1029,6 +1042,7 @@ void printAssign(struct Function * env, struct Operand * a, struct Operand * b) 
 	struct Operand * c = printCast(env, a->var, b);
 	//printf("assign %s %d\n", a->var->name, a->var->level);
 	if(isStruct(a->var)) {
+		/*
 		struct Operand * aa = newOperand(newVariable(), 0, 0, 0);
 		struct Operand * cc = newOperand(newVariable(), 0, 0, 0);
 		aa->var->type = CHAR_TYPE;
@@ -1046,42 +1060,39 @@ void printAssign(struct Function * env, struct Operand * a, struct Operand * b) 
 		inst->f = findFunc(_c___memcpy__);
 		inst->n = 3;
 		push(env, inst);
-		/*
+		*/
 		int i = 0, s = calcSize(a->var);
 		for( ; i < s; ) {
-			struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), a, constInt(i));
-			push(env, inst);
-			struct Instruction * inst1 = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), c, constInt(i));
+			struct Operand * a1 = newOperand(newVariable(), 1, 0, 0), * c1 = newOperand(newVariable(), 1, 0, 0);
+			a1->var->index = a->var->index;
+			c1->var->index = c->var->index;
+			totIndex -= 2;
+			a1->offset = a->offset + i;
+			c1->offset = c->offset + i;
 			if(i + 4 <= s) {
 				i += 4;
+				printAssign(env, a1, c1);
 			}else {
 				i += 1;
-				inst->a->var->type = CHAR_TYPE;
-				inst1->a->var->type = CHAR_TYPE;
+				a1->var->type = CHAR_TYPE;
+				c1->var->type = CHAR_TYPE;
+				printAssign(env, a1, c1);
 			}
-			occupy(env, inst->a);
-			occupy(env, inst1->a);
-			push(env, inst1);
-			printAssign(env, inst->a, inst1->a);
-		}*/
+		}
 	}else {
 		struct Instruction * inst = newInstruction(0, a, c, 0);
 		if(a->type == 0) {
-			if(a->var->level) {
-				inst->type = ASSIGN_ADDRESS;
-			}else if(a->var->type == INT_TYPE) {
-				inst->type = ASSIGN;//a = b;
-			}else if(a->var->type == CHAR_TYPE) {
+			if(!a->var->level && a->var->type == CHAR_TYPE) {
 				inst->type = ASSIGN_CHAR;
+			}else {
+				inst->type = ASSIGN;//a = b;
 			}
 		}else if(a->type == 1) {
-			if(a->var->level) {
-				//printf("%s %d %d %d\n", env->name, a->var->level, inst->a->var->index, inst->b->var->index);
-				inst->type = DEREF_ASSIGN_ADDRESS;
-			}else if(a->var->type == INT_TYPE) {
-				inst->type = DEREF_ASSIGN;//*a = b;
-			}else if(a->var->type == CHAR_TYPE) {
-				inst->type = DEREF_ASSIGN_CHAR;
+			if(!a->var->level && a->var->type == CHAR_TYPE) {
+				inst->type = ST_CHAR;
+			}else {
+				//printf("STORE!\n");
+				inst->type = ST;//*a = b;
 			}
 		}
 		push(env, inst);
@@ -1101,7 +1112,7 @@ struct Operand * printAccess(struct Function * env, struct Operand * a, struct O
 //	}
 	a = getValue(env, a);
 	if(a->var->list || a->var->level) {
-		if(b->constant && b->value == 0) {
+		if(b->constant) {
 			struct Operand * res = newOperand(newVariable(), 1, 0, 0);
 			copyType(res->var, a->var);
 			//occupy(env, res);
@@ -1113,6 +1124,7 @@ struct Operand * printAccess(struct Function * env, struct Operand * a, struct O
 			res->var->index = a->var->index;
 			totIndex--;
 			res->loadable = a->loadable && b->constant;
+			res->offset = a->offset + b->value * calcSize(res->var);
 			return res;
 		}else {
 			struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), a, 0);
@@ -1242,20 +1254,28 @@ struct Operand * printCast(struct Function * env, struct Variable * b, struct Op
 	int s1 = isChar(b), s2 = isChar(a->var);
 	struct Instruction * inst;
 	if(s1 && !s2) {
-		inst = newInstruction(INT_TO_CHAR, newOperand(newVariable(), 2, a->constant, a->value), a, 0);
-		occupy(env, inst->a);
-		inst->a->var->type = CHAR_TYPE;
-		assignInst = inst;
-		push(env, inst);
-		return inst->a;
-	}else {
-		if(s2 && !s1) {
-			inst = newInstruction(CHAR_TO_INT, newOperand(newVariable(), 2, a->constant, a->value), a, 0);
+		if(a->constant) {
+			return constChar(a->value);
+		}else {
+			inst = newInstruction(INT_TO_CHAR, newOperand(newVariable(), 2, a->constant, a->value), a, 0);
 			occupy(env, inst->a);
-			copyType(inst->a->var, b);
+			inst->a->var->type = CHAR_TYPE;
 			assignInst = inst;
 			push(env, inst);
 			return inst->a;
+		}
+	}else {
+		if(s2 && !s1) {
+			if(a->constant) {
+				return constInt(a->value);
+			}else {
+				inst = newInstruction(CHAR_TO_INT, newOperand(newVariable(), 2, a->constant, a->value), a, 0);
+				occupy(env, inst->a);
+				copyType(inst->a->var, b);
+				assignInst = inst;
+				push(env, inst);
+				return inst->a;
+			}
 		}else {
 			struct Operand * res = newOperand(newVariable(), 2, a->constant, a->value);
 			copyType(res->var, b);
@@ -1290,28 +1310,30 @@ struct Operand * printMemberAccess(struct Function * env, struct Operand * a, ch
 			res->var->index = a->var->index;
 			totIndex--;
 			res->loadable = a->loadable;
+			res->offset = a->offset;
 			return res;
 		}else if(a->var->type->type == 2) {
 			struct Variable * p = a->var->type->vars;
 			struct List * l = a->var->type->posi;
 			while(p) {
 				if(!strcmp(p->name, name)) {
-					if(l->value) {
+					/*if(l->value) {
 						struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 2 - (a->type == 1), 0, 0), a, constInt(l->value));
 						occupy(env, inst->a);
 						copyType(inst->a->var, p);
 						push(env, inst);
 						inst->a->loadable = a->loadable;
 						return inst->a;
-					}else {
-						struct Operand * res = newOperand(newVariable(), 2 - (a->type == 1), 0, 0);
-						//occupy(env, res);
-						copyType(res->var, p);
-						res->var->index = a->var->index;
-						totIndex--;
-						res->loadable = a->loadable;
-						return res;
-					}
+					}else {*/
+					struct Operand * res = newOperand(newVariable(), 2 - (a->type == 1), 0, 0);
+					//occupy(env, res);
+					copyType(res->var, p);
+					res->var->index = a->var->index;
+					totIndex--;
+					res->loadable = a->loadable;
+					res->offset = a->offset + l->value;
+					return res;
+					//}
 				}
 				p = p->next;
 				l = l->next;
@@ -1596,7 +1618,16 @@ struct Operand * printAddressOf(struct Function * env, struct Operand * a) {
 		res->var->index = a->var->index;
 		totIndex--;
 		res->loadable = a->loadable;
-		return res;
+		if(a->offset) {
+			struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 2, 0, 0), res, constInt(a->offset));
+			copyType(inst->a->var, a->var);
+			occupy(env, inst->a);
+			inst->a->loadable = a->loadable;
+			push(env, inst);
+			return inst->a;
+		}else {
+			return res;
+		}
 	}else {
 		ERROR(31);
 	}
@@ -1724,38 +1755,34 @@ void printFillZero(struct Function * env, struct Operand * a) {
 		if(isChar(a->var)) {
 			inst->type = ASSIGN_CHAR;
 			inst->b = constChar(0);
-		}else if(isPointer(a->var)){
-			inst->type = ASSIGN_ADDRESS;
-			inst->b = constInt(0);
-		}else {
+		}else{
 			inst->type = ASSIGN;
 			inst->b = constInt(0);
 		}
 		push(env, inst);
 	}else {
-		printArgu(env, a);
+/*		printArgu(env, a);
 		printArgu(env, constInt(calcSize(a->var)));
 		struct Instruction * inst = newInstruction(CALL, newOperand(newVariable(), 0, 0, 0), 0, 0);
 		inst->a->var->type = VOID_TYPE;
 		inst->n = 2;
 		inst->f = findFunc(_c___memset__);
 		push(env, inst);
-/*		int i = 0, s = calcSize(a->var);
+*/		int i = 0, s = calcSize(a->var);
 		for( ; i < s; ) {
-			struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), a, constInt(i));
-			occupy(env, inst->a);
+			struct Operand * ope = newOperand(newVariable(), 1, 0, 0);
+			ope->var->index = a->var->index;
+			totIndex--;
+			ope->offset = a->offset + i;
 			if(i + 4 <= s) {
+				printAssign(env, ope, constInt(0));
 				i += 4;
-				push(env, inst);
-				printAssign(env, inst->a, constInt(0));
-			}else {
+			} else {
+				ope->var->type = CHAR_TYPE;
+				printAssign(env, ope, constChar(0));
 				i += 1;
-				inst->a->var->type = CHAR_TYPE;
-				push(env, inst);
-				printAssign(env, inst->a, constChar(0));
 			}
 		}
-*/
 	}
 }
 
@@ -2753,17 +2780,19 @@ int compFunc(struct Function * p, struct Function * q) {//\B1ȽϺ\AF\CA\FD\B6\A8
 }
 
 void printStringAssign(struct Function * env, struct Operand * v) {
-	struct Operand * res = newOperand(newVariable(), 1, 0, 0);
-	res->var->type = CHAR_TYPE;
 	int len = 0;
 	while(len == 0 || look.name[len - 1]) {
 		if(!v->var->list || len < v->var->list->value) {
-			struct Instruction * inst = newInstruction(ASSIGN_ADD, res, v, constInt(len));
-			push(env, inst);
-			printAssign(env, res, constChar(look.name[len]));
+			struct Operand * ope = newOperand(newVariable(), 1, 0, 0);
+			ope->var->index = v->var->index;
+			totIndex--;
+			ope->offset = len + v->offset;
+			ope->var->type = CHAR_TYPE;
+			printAssign(env, ope, constChar(look.name[len]));
 		}
 		len++;
 	}
+//	totIndex++;
 	move();
 }
 
@@ -2837,12 +2866,13 @@ void parseInitialization(struct Function * env, struct Operand * v) {
 				}
 				tot *= v->var->list->mul / v->var->list->value;
 				while(look.type != 506) {
-					struct Instruction * inst = newInstruction(ASSIGN_ADD, newOperand(newVariable(), 1, 0, 0), v, constInt(tot * calcElementSize(v->var)));
-					occupy(env, inst->a);			
-					inst->a->var->type = v->var->type;
-					inst->a->var->level = v->var->level;
-					push(env, inst);
-					parseElementInitialization(env, inst->a, tot < v->var->list->mul, tot == 0);
+					struct Operand * ope = newOperand(newVariable(), 1, 0, 0);
+					ope->var->index = v->var->index;
+					totIndex--;
+					ope->offset = v->offset + tot * calcElementSize(v->var);
+					ope->var->type = v->var->type;
+					ope->var->level = v->var->level;
+					parseElementInitialization(env, ope, tot < v->var->list->mul, tot == 0);
 					tot++;
 					if(look.type == 506) {
 						break;
@@ -2991,6 +3021,7 @@ void parseStatement(int b, int a, struct Function * env) {//\B7\D6\CE\F6\D3\EF\B
 }
 
 void parseFunctionBody(struct Function * env) {
+//	printf("parse Function %s\n", env->name);
 	top = env->symbolList;
 	struct Variable * p = env->argu, * p1;//\B8\B4\D6Ʋ\CE\CA\FDΪ\B3\F5ʼ\B1\E4\C1\BF\B1\ED
 	env->argu = 0;
@@ -3406,10 +3437,28 @@ int run(struct Function * f) {
 			a->value = *(int *)b->value;
 		}else if(t == ASSIGN_DEREF_CHAR) {
 			a->value = *(char *)b->value;
+		}else if(t == LD) {
+//			printf("LD1");
+			a->value = *(int *)(b->value + inst->b->offset);	
+//			printf("LD2");
+		}else if(t == LD_CHAR) {
+//			printf("LD1");
+			a->value = *(char *)(b->value + inst->b->offset);	
+//			printf("LD2");
 		}else if(t == DEREF_ASSIGN_ADDRESS || t == DEREF_ASSIGN) {
 			*(int *)a->value = b->value;
 		}else if(t == DEREF_ASSIGN_CHAR) {
 			*(char *)a->value = b->value;
+		}else if(t == ST) {
+			//printf("st1");
+			//printf("ST1%d", inst->a->offset);
+			*(int *)(a->value + inst->a->offset) = b->value;
+			//printf("ST2");
+		}else if(t == ST_CHAR) {
+			//printf("st1");
+			//printf("ST1%d", inst->a->offset);
+			*(char *)(a->value + inst->a->offset) = b->value;
+			//printf("ST2");
 		}else if(t == RETURN) {
 			res = a->value;
 			break;
@@ -3709,7 +3758,7 @@ int isJump(int x) {
 	return x == IF_GOTO || x == IF_FALSE_GOTO || x == GOTO;
 }
 int isAssign(int x) {
-	//printf("?");
+	//printf("?");//isload
 	return x == GET_ARGU || x == MALLOC || x == GETCHAR 
 	|| x == ASSIGN_DEREF_CHAR || x == ASSIGN_DEREF || x == ASSIGN_DEREF_ADDRESS 
 	|| x == ASSIGN || x == ASSIGN_LOGICAL_NOT || x == ASSIGN_NOT || x == ASSIGN_NEGATE || x == ASSIGN_CHAR
@@ -3717,13 +3766,14 @@ int isAssign(int x) {
 	|| x == ASSIGN_SHR || x == ASSIGN_SHL || x == ASSIGN_SUB || x == CALL || x == ASSIGN_MOD || x == ASSIGN_DIV
 	|| x == ASSIGN_MUL || x == ASSIGN_NOT_EQUAL_TO || x == ASSIGN_EQUAL_TO || x == ASSIGN_GREATER_THAN_OR_EQUAL_TO
 	|| x == ASSIGN_LESS_THAN_OR_EQUAL_TO || x == ASSIGN_GREATER_THAN || x == ASSIGN_LESS_THAN || x == ASSIGN_LOGIC_OR
-	|| x == ASSIGN_LOGIC_AND || x == INT_TO_CHAR || x == CHAR_TO_INT || x == ASSIGN_ADDRESS_OF || x == ASSIGN_ADD;
+	|| x == ASSIGN_LOGIC_AND || x == INT_TO_CHAR || x == CHAR_TO_INT || x == ASSIGN_ADDRESS_OF || x == ASSIGN_ADD
+	|| x == LD || x == LD_CHAR;
 }
 
 int stopAtLexer = 0, stopAt3AddrCode = 1, interpreter = 0;
 
 int main() {
-	//	freopen("gadget.c", "r", stdin);
+	//freopen("gadget.c", "r", stdin);
 	examine = 1;
 	initBasicTypeName();
 	initModVariables();
@@ -3765,7 +3815,6 @@ int main() {
 		program[len++] = program[i];
 	}
 	program[len] = 0;
-	//printf("%s", program);
 	beginOfLine = 1;
 	bp = program;
 	if(stopAtLexer) {
@@ -3818,6 +3867,7 @@ int main() {
 				p = p->next;
 			}
 		}
+		return 0;
 		p = funcList;
 //        int nBlock = 0;
 		jumpToBlock = (struct Block **)malloc(sizeof(struct Block *) * nLabel);
@@ -3905,6 +3955,7 @@ int main() {
 			p = p->next;
 			//printf("%d\n", p);
 		}
+		return 0;
 		for(i = 0; i < totIndex; i++) {//枚举变量.
 			int cnt = 0;
 			p = funcList;
