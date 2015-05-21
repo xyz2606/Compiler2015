@@ -1,9 +1,11 @@
  #include <stdio.h>
 # include<stdlib.h>
-
+# include <assert.h>
 int POINTER_SIZE = 4;
 
 int examine = 1;
+
+int infi = 1000000000;
 
 char * newEmptyString() {
 	char * res = (char *)malloc(sizeof(char));
@@ -24,7 +26,6 @@ char * bp, * program;
 int errorPainting = 1;
 
 void ERROR(int label) {
-
 	if(errorPainting) {
 		printf("//////////////  ////////////    ////////////       ////////     ////////////\n");
 		printf("//              //         //   //         //     //      //    //         //\n");
@@ -79,6 +80,14 @@ int max(int a, int b) {
 		return a;
 	}else {
 		return b;
+	}
+}
+
+int min(int a, int b) {
+	if(a > b) {
+		return b;
+	}else {
+		return a;
 	}
 }
 
@@ -727,6 +736,10 @@ struct FuncList {
 	struct Function * f;
 	struct FuncList * next;
 	struct Block * blocks;
+	int cnt;
+	int numReg;
+	int cntArgu;
+	int * regAlloc;
 } * funcList;
 
 struct FuncList * newFuncList(struct Function * f, struct FuncList * next) {
@@ -734,6 +747,7 @@ struct FuncList * newFuncList(struct Function * f, struct FuncList * next) {
 	res->f = f;
 	res->blocks = 0;
 	res->next = next;
+	res->cnt = 0;
 	return res;
 }
 
@@ -835,7 +849,9 @@ int
 	LD = 52,
 	LD_CHAR = 53,
 	ST = 54,
-	ST_CHAR = 55;
+	ST_CHAR = 55, 
+	ASSIGN_DATA = 56, 
+	ASSIGN_STR = 57;
 void printOperand(struct Operand * ope) {
 	//	if(ope->type == 0 && ope->var->name && ope->var->name[0]) {
 	//		printf("%s", ope->var->name);
@@ -964,6 +980,10 @@ void printIntermediateCode(struct Instruction * inst) {
 		printOperand(inst->a), printf("[%d] = ", inst->a->offset), printOperand(inst->b), printf("\n");
 	}else if(inst->type == ST_CHAR) {
 		printf("(char *)"), printOperand(inst->a), printf("[%d] = ", inst->a->offset), printOperand(inst->b), printf("\n");
+	}else if(inst->type == ASSIGN_STR) {
+		printf("la "), printOperand(inst->a), printf(".data str%d\n", inst->n);
+	}else if(inst->type == ASSIGN_DATA) {
+		printf("la "), printOperand(inst->a), printf(".data data%d\n", inst->n);
 	}else {
 		printf("\n\n???instruction???%d\n\n", inst->type);
 	}
@@ -980,6 +1000,11 @@ void occupy(struct Function * env, struct Operand * ope) {
 	new->value = ope->var->index;
 	new->next = env->occupy;
 	env->occupy = new;
+	//struct List * tmp = env->occupy;
+	//	while(tmp) {
+	//		printf("%s %d\n", env->name, tmp->value);
+	//		tmp = tmp->next;
+	//	}
 }
 
 struct Operand * printCast(struct Function * env, struct Variable * a, struct Operand * b);
@@ -1113,6 +1138,14 @@ struct Operand * printAccess(struct Function * env, struct Operand * a, struct O
 	a = getValue(env, a);
 	if(a->var->list || a->var->level) {
 		if(b->constant) {
+			if(a->constant) {
+				struct Operand * tmp = newOperand(newVariable(), 2, 0, 0);
+				struct Instruction * inst = newInstruction(ASSIGN, tmp, constInt(a->value), 0);
+				occupy(env, tmp);
+				push(env, inst);
+				copyType(tmp->var, a->var);
+				a = tmp;
+			}
 			struct Operand * res = newOperand(newVariable(), 1, 0, 0);
 			copyType(res->var, a->var);
 			//occupy(env, res);
@@ -1138,6 +1171,7 @@ struct Operand * printAccess(struct Function * env, struct Operand * a, struct O
 			inst->c = printAssignOp(env, b, constInt(calcSize(inst->a->var)), 532);
 			push(env, inst);
 			inst->a->loadable = a->loadable && b->constant;
+			inst->a->offset = a->offset;
 			return inst->a;
 		}
 	}else {
@@ -1253,10 +1287,11 @@ struct Operand * printCast(struct Function * env, struct Variable * b, struct Op
 	}
 	int s1 = isChar(b), s2 = isChar(a->var);
 	struct Instruction * inst;
-	if(s1 && !s2) {
+	if(0 && s1 && !s2) {
 		if(a->constant) {
 			return constChar(a->value);
 		}else {
+			printf("!!?\n");
 			inst = newInstruction(INT_TO_CHAR, newOperand(newVariable(), 2, a->constant, a->value), a, 0);
 			occupy(env, inst->a);
 			inst->a->var->type = CHAR_TYPE;
@@ -1265,7 +1300,7 @@ struct Operand * printCast(struct Function * env, struct Variable * b, struct Op
 			return inst->a;
 		}
 	}else {
-		if(s2 && !s1) {
+		if(0 && s2 && !s1) {
 			if(a->constant) {
 				return constInt(a->value);
 			}else {
@@ -1277,7 +1312,9 @@ struct Operand * printCast(struct Function * env, struct Variable * b, struct Op
 				return inst->a;
 			}
 		}else {
+			//printf("!!\n");
 			struct Operand * res = newOperand(newVariable(), 2, a->constant, a->value);
+			//printf("%d %d\n", a->constant, a->value);
 			copyType(res->var, b);
 			//occupy(env, res);
 			res->var->index = a->var->index;
@@ -1351,6 +1388,14 @@ struct Operand * printDeref(struct Function * env, struct Operand * a) {
 	}
 	//struct Instruction * inst = newInstruction(ASSIGN_ADDRESS, newOperand(newVariable(), 1, 0, 0), 0, 0);
 	a = getValue(env, a);
+	if(a->constant) {
+		struct Operand * tmp = newOperand(newVariable(), 2, 0, 0);
+		struct Instruction * inst = newInstruction(ASSIGN, tmp, constInt(a->value), 0);
+		occupy(env, tmp);
+		push(env, inst);
+		copyType(tmp->var, a->var);
+		a = tmp;
+	}
 	struct Operand * res = newOperand(newVariable(), 1, 0, 0);
 	copyType(res->var, a->var);
 	//occupy(env, res);
@@ -1496,7 +1541,12 @@ struct Operand * printAssignOp(struct Function * env, struct Operand * b, struct
 				}else {
 					b->var->level++;
 				}
-				return printAssignOp(env, inst->a, ope, 533);
+				if(ope->value != 1) {
+					return printAssignOp(env, inst->a, ope, 533);
+				}else {
+					assignInst = inst;
+					return inst->a;
+				}
 			}else {
 				inst = newInstruction(0, 0, 0, 0);
 				if(op == 535) {
@@ -1749,7 +1799,7 @@ char _c___memset__[20] = "__memset__";
 
 struct Function * findFunc(char * name);
 
-void printFillZero(struct Function * env, struct Operand * a) {
+/*void printFillZero(struct Function * env, struct Operand * a) {
 	if(a->type == 0) {
 		struct Instruction * inst = newInstruction(0, a, 0, 0);
 		if(isChar(a->var)) {
@@ -1761,14 +1811,15 @@ void printFillZero(struct Function * env, struct Operand * a) {
 		}
 		push(env, inst);
 	}else {
-/*		printArgu(env, a);
+		printArgu(env, a);
 		printArgu(env, constInt(calcSize(a->var)));
 		struct Instruction * inst = newInstruction(CALL, newOperand(newVariable(), 0, 0, 0), 0, 0);
 		inst->a->var->type = VOID_TYPE;
 		inst->n = 2;
 		inst->f = findFunc(_c___memset__);
 		push(env, inst);
-*/		int i = 0, s = calcSize(a->var);
+		struct Instruction * inst = 
+		int i = 0, s = calcSize(a->var);
 		for( ; i < s; ) {
 			struct Operand * ope = newOperand(newVariable(), 1, 0, 0);
 			ope->var->index = a->var->index;
@@ -1784,7 +1835,7 @@ void printFillZero(struct Function * env, struct Operand * a) {
 			}
 		}
 	}
-}
+}*/
 
 void printNOP(struct Function * env) {
 	struct Instruction * inst = newInstruction(NOP, 0, 0, 0);
@@ -1822,6 +1873,7 @@ struct Operand * printMalloc(struct Function * env, struct Operand * a) {
 		ERROR(34);
 	}
 	struct Instruction * inst = newInstruction(MALLOC, newOperand(newVariable(), 2, 0, 0), getValue(env, a), 0);
+	occupy(env, inst->a);
 	inst->a->var->type = VOID_TYPE;
 	inst->a->var->level = 1;
 	push(env, inst);
@@ -1867,6 +1919,18 @@ struct Operand * printExit(struct Function * env, struct Operand * a) {
 	return directLvalue(VOID_VARIABLE);
 }
 
+struct StringList {
+	char * name;
+	struct StringList * next;
+} * strings = 0;
+int nString = 0;
+struct StringList * newStringList() {
+	struct StringList * res = (struct StringList *)malloc(sizeof(struct StringList));
+	res->name = 0;
+	res->next = 0;
+	return res;
+}
+
 struct Operand * parsePrimaryExpression(struct Function * env) {
 	//printf("primary %d\n", env);
 	//printf("%d %s\n", look.type, look.name, program[0], program[1], program[2], program[3]);
@@ -1897,6 +1961,25 @@ struct Operand * parsePrimaryExpression(struct Function * env) {
 		move();
 		return constChar(bak);
 	}else if(look.type == STR_CONSTANT) {
+		struct Instruction * inst = newInstruction(ASSIGN_STR, newOperand(newVariable(), 2, 0, 0), 0, 0);
+		assignInst = inst;
+		inst->a->var->type = CHAR_TYPE;
+		inst->a->var->level = 1;
+		//printf("%s ssss %d\n", env->name, inst->a->var->index);
+		occupy(env, inst->a);
+		//printf("%d\n", env->occupy->value);
+		inst->n = nString++;
+		push(env, inst);
+		struct StringList * sl = newStringList();
+		sl->name = look.name;
+		sl->next = strings;
+		strings = sl;
+		//struct List * tmp = env->occupy;
+	//	while(tmp) {
+		//	printf("%s %d\n", env->name, tmp->value);
+	//		tmp = tmp->next;
+	//	}
+		/*
 		int len = 0;
 		while(look.name[len]) {
 			len++;
@@ -1914,7 +1997,7 @@ struct Operand * parsePrimaryExpression(struct Function * env) {
 		}
 		printAssign(env, printAccess(env, inst->a, constInt(len)), constChar(0));
 		res->var->list->value = i + 1;
-		res->var->list->prev = res->var->list;
+		res->var->list->prev = res->var->list;*/
 		move();
 		return inst->a;
 	}else if(look.type == 500) {//'('
@@ -1984,6 +2067,7 @@ struct Operand * parseActualArgument(struct Function * env, struct Operand * p) 
 		v->level = 1;
 		printArgu(env, printCast(env, v, parseAssignmentExpression(env)));
 		struct Operand * ope = newOperand(newVariable(), 0, 0, 0);
+		occupy(env, ope);
 		ope->var->level = 1;//\CAֶ\AFint*
 		int cnt = 0;
 		printMalloc(env, constInt(cnt * POINTER_SIZE));
@@ -2359,6 +2443,7 @@ struct Operand * parseLogicalAndExpression(struct Function * env) {
 		}
 	}
 	if(res->constant) {
+		printLabel(env, x);
 		return res;
 	}
 	struct Operand * rtn = newOperand(newVariable(), 0, 0, 0);
@@ -2395,6 +2480,7 @@ struct Operand * parseLogicalOrExpression(struct Function * env) {
 		}
 	}
 	if(res->constant) {
+		printLabel(env, x);	
 		return res;
 	}
 	struct Operand * rtn = newOperand(newVariable(), 0, 0, 0);
@@ -2429,14 +2515,14 @@ struct Operand * parseAssignmentExpression(struct Function * env) {
 		if(assignType == 504) {
 			struct Operand * tmp = parseAssignmentExpression(env);
 			//printf("%d %d %d %d %d\n", assignInst, tmp, assignInst->a, isChar(tmp->var), isChar(res->var));
-			if(assignInst && tmp == assignInst->a && isChar(tmp->var) == isChar(res->var) && res->type == 0) {
+			if(assignInst && tmp == assignInst->a && tmp->type == 2 && isChar(tmp->var) == isChar(res->var) && res->type == 0) {
 				assignInst->a = res;
 			}else {
 				printAssign(env, res, tmp);
 			}
 		}else {
 			struct Operand * tmp = printAssignOp(env, res, parseAssignmentExpression(env), assignType);
-			if(assignInst && tmp == assignInst->a && isChar(tmp->var) == isChar(res->var) && res->type == 0) {
+			if(assignInst && tmp == assignInst->a && tmp->type == 2 && isChar(tmp->var) == isChar(res->var) && res->type == 0) {
 				assignInst->a = res;//\D3Ż\AF: \B1\ED\B4\EFʽƴ\BD\D3 such as a = b + c => t1 = b + c, a = t1 => a = b + c
 			}else {
 				printAssign(env, res, tmp);
@@ -2625,6 +2711,9 @@ struct Type * parseTypeSpecifier() {//\B7\D6\CE\F6\C0\E0\D0\CD
 					l->next = a->posi;
 					a->posi = l;
 					int s = calcSize(v);
+					if(s % 4) {
+						s += 4 - s % 4;
+					}
 					if(s_or_u == 304) {//struct, Ҫȫ\B2\BF\B7\D6\C5\E4\C4ڴ\E6
 						a->size += s;
 					}else {//union, ֻ\D0\E8Ҫ\D7\EE\B4\F3\B5\C4\C4ڴ\E6
@@ -2654,7 +2743,11 @@ struct Type * parseTypeSpecifier() {//\B7\D6\CE\F6\C0\E0\D0\CD
 						l->next = a->posi;
 						a->posi = l;
 						if(t->type == 2) {
-							cur += calcSize(v);
+							int tmp = calcSize(v);
+							if(tmp % 4) {
+								tmp += 4 - tmp % 4;
+							}
+							cur += tmp;
 						}
 						v = v1;
 					}
@@ -2818,7 +2911,10 @@ void parseElementInitialization(struct Function * env, struct Operand * v, int f
 			}
 		}else {
 			if(v->var->level && look.type == STR_CONSTANT) {
-				int len = 0;
+
+				parsePrimaryExpression(env);
+				env->insts->a = getValue(env, v);
+/*				int len = 0;
 				while(look.name[len]) {
 					len++;
 				}
@@ -2828,7 +2924,7 @@ void parseElementInitialization(struct Function * env, struct Operand * v, int f
 				}else {
 					printAssign(env, v, res);
 				}
-				printStringAssign(env, getValue(env, v));
+				printStringAssign(env, getValue(env, v));*/
 			}else {
 				struct Operand * res = parseAssignmentExpression(env);
 				if(env == chief && (v->var->level && !(res->loadable || res->constant) || !v->var->level && !res->constant)) {
@@ -2951,6 +3047,7 @@ void parseStatement(int b, int a, struct Function * env) {//\B7\D6\CE\F6\D3\EF\B
 		struct Function * tmp = (struct Function *)malloc(sizeof(struct Function));//\B8\B4\D6ƺ\AF\CA\FD\BB\B7\BE\B3
 		*tmp = *env;
 		tmp->insts = 0;
+		tmp->occupy = 0;
 		if(look.type == 501) {//')'
 			//֧\B3\D6\CB\C0ѭ\BB\B7
 		}else {
@@ -2966,6 +3063,14 @@ void parseStatement(int b, int a, struct Function * env) {//\B7\D6\CE\F6\D3\EF\B
 			}
 			p->next = env->insts;
 			env->insts = tmp->insts;
+		}
+		if(tmp->occupy) {
+			struct List * p = tmp->occupy;
+			while(p->next) {
+				p = p->next;
+			}
+			p->next = env->occupy;
+			env->occupy = tmp->occupy;
 		}
 		printGoto(env, body);//\CC\F8\B5\BDѭ\BB\B7\BF\D8\D6\C6λ\D6\C3
 		printLabel(env, after);//\B1\EA\BC\C7ѭ\BB\B7\BD\E1\CA\F8
@@ -3039,6 +3144,7 @@ void parseFunctionBody(struct Function * env) {
 		//printf("get_argument %s %s %d\n", env->name, p->name, env->insts->a->var->level);
 		p = p->next;
 	}
+	//printf("abc\n");
 
 	p = env->argu;
 	env->argu = 0;
@@ -3048,16 +3154,20 @@ void parseFunctionBody(struct Function * env) {
 		env->argu = p;
 		p = p1;
 	}	
+	//printf("abc\n");
 	move();
 	while(look.type != 506) {//'}'
 		if(look.type >= 301 && look.type <= 305) {//\CA\C7void char int struct union\D6е\C4һ\B8\F6
+		//	printf("decl\n");
 			parseDeclaractionOrFunctionDefinition(env);
 		}else {
+		//	printf("state\n");
 			//printf("FB %d\n", env);
 			parseStatement(-1, -1, env);//\B7\F1\D4\F2.
 			//printf("FB %d\n", env);
 		}
 	}
+	//printf("abc\n");
 	move();
 	top = top->prev;
 }
@@ -3076,6 +3186,7 @@ struct Function * parseArguments(struct Function * env) {
 		if(look.type == 507) {//'['
 			v->list = parseArray();
 		}
+		//occupy(env, directLvalue(v));
 		v->type = p;
 		v->next = top->vars;
 		top->vars = v;//\B7\B4\CF\F2\B2\CE\CA\FD\B1\ED!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3098,6 +3209,27 @@ struct Function * parseArguments(struct Function * env) {
 	return f;
 }
 
+struct List * data = 0, * data1 = 0;//.data数据段
+int nData = 0;
+
+void printFillZero(struct Function * env, struct Operand * ope) {
+	if(ope->var->list || isStruct(ope->var)) {
+		struct Instruction * inst = newInstruction(MALLOC, ope, constInt(calcSize(ope->var)), 0);
+		push(env, inst);
+//		inst->n = nData++;
+//		struct List * tmp = newList();
+//		tmp->value = calcSize(ope->var);
+//		tmp->mul = nData - 1;
+//		tmp->next = data1;
+//		data1 = tmp;
+	}
+	struct List * tmp = newList();
+	tmp->value = 4;//calcSize(ope->var);
+	tmp->mul = ope->var->index;
+	tmp->next = data;
+	data = tmp;
+}
+
 void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 	int i = 0;
 	//printf("Func Def");
@@ -3106,7 +3238,6 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 	//		match(502);//';'
 	//		return;
 	//	}
-	//printf("parse FUNCTION\n");
 	for(;look.type != 502;) {//';'
 		i++;
 		//printf("Func Def");
@@ -3150,6 +3281,7 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 				}
 				printNOP(f);
 				//printf("REAL DEF\n");
+				//printf("parseFunctionBody%s\n", f->name);
 				parseFunctionBody(f);//\B7\D6\CE\F6\BA\AF\CA\FD\B9\FD\B3\CC.
 				//printf("REAL DEF\n");
 				return;//\BA\AF\CA\FD\B6\A8\D2\E5\B1\D8\D0\EB\B6\C0ռtype-specifier
@@ -3170,8 +3302,10 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 			}
 			if(v->list || isStruct(v)) {
 				printDeclPointer(env, directLvalue(v));
-				printMalloc(env, constInt(calcSize(v)));
-				env->insts->a = directLvalue(v);
+				if(env != chief) {
+					printMalloc(env, constInt(calcSize(v)));
+					env->insts->a = directLvalue(v);
+				}
 			}else if(v->level) {
 				printDeclPointer(env, directLvalue(v));
 			}else if(v->type == CHAR_TYPE) {
@@ -3179,6 +3313,7 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 			}else if(v->type == INT_TYPE) {
 				printDeclInt(env, directLvalue(v));
 			}
+			//printf("occupy %s %d %s\n", env->name, v->index, v->name);
 			occupy(env, directLvalue(v));
 			//printf("!!\n");
 			/*			if(env == chief) {//˵\C3\F7\CA\C7ȫ\BEֱ\E4\C1\BF
@@ -3188,7 +3323,7 @@ void parseDeclaractionOrFunctionDefinition(struct Function * env) {
 
 			}*/
 			if(look.type == 504) {//'='˵\C3\F7\D3г\F5ʼ\BB\AF
-				if(env == chief && (v->list || isStruct(v))) {
+				if(env == chief) {// && (v->list || isstruct(v))) {
 					printFillZero(env, directLvalue(v));
 				}
 				move();//'='
@@ -3220,9 +3355,12 @@ void parseProgram() {
 	printLabel(chief, begin);
 	look1 = nextToken();
 	move();
+	//printf("WoW\n");
 	while(look.type != NO_TOKEN) {
+		//printf("fuck you");
 		parseDeclaractionOrFunctionDefinition(chief);
 	}
+	//printf("Oh\n");
 	printLabel(chief, end);
 	//chief->insts\BC\B4Ϊ\D6\F7\B3\CC\D0\F2\B5\C4ָ\C1\EE\D0\F2\C1\D0(\B5\B9\D0\F2)
 }
@@ -3235,6 +3373,9 @@ void reverse(struct Function * f) {//\B7\B4\CF\F2ָ\C1\EE\B1\ED, fetch label
 	struct Instruction * tmp = f->insts, * tmp1;
 	f->insts = 0;
 	while(tmp) {
+		if(tmp->type == CALL && tmp->f->insts == 0) {
+			ERROR(98);//UNDEFINED FUNCTION
+		}
 		tmp1 = tmp->next;
 		tmp->next = f->insts;
 		f->insts = tmp;
@@ -3527,6 +3668,7 @@ struct InterCode {
 	struct InterCodeOperand * a, * b, * c;
 	struct InterCode * next;
 	int n;
+	int * liveness;
 	struct Function * func;
 };
 struct InterCode * newInterCode() {
@@ -3538,10 +3680,26 @@ struct InterCode * newInterCode() {
 	res->next = 0;
 	res->n = -1;
 	res->func = 0;
+	res->liveness = 0;
 	return res;
 }
 
 int nBlocks = 0, clck = 0;
+
+struct Block;
+
+struct Edge {
+	struct Block * y;
+	struct Edge * next;
+};
+
+struct Edge * newEdge() {
+	struct Edge * res = (struct Edge *)malloc(sizeof(struct Edge));
+	res->y = 0;
+	res->next = 0;
+	return res;
+}
+
 struct Block {
 	int visit;
 	int index;
@@ -3550,13 +3708,26 @@ struct Block {
 	struct InterCode * incs, * phis;
 	struct Block * edges[2], * next;
 	struct List * sources;
+	struct Edge * pres;
 };
 struct Block * newBlock() {
 	struct Block * res = (struct Block *)malloc(sizeof(struct Block));
 	res->visit = 0;
 	res->index = ++nBlocks;
 	res->incs = res->phis = 0;
+	res->pres = 0;
 	res->edges[0] = res->edges[1] = res->next = 0;
+	return res;
+}
+
+void pushEdge(struct Block * blk, int d, struct Block * y) {
+	blk->edges[d] = y;
+	if(y) {
+		struct Edge * tmp = newEdge();
+		tmp->y = blk;
+		tmp->next = y->pres;
+		y->pres = tmp;
+	}
 }
 
 void dfs(struct Block * blk, int rtn) {
@@ -3604,6 +3775,11 @@ struct InterCode * convertToInterCode(struct Instruction * inst) {
 	}
 	res->n = inst->n;
 	res->func = inst->f;
+	if(inst->type == LD || inst->type == LD_CHAR) {
+		res->n = inst->b->offset;
+	}else if(inst->type == ST || inst->type == ST_CHAR) {
+		res->n = inst->a->offset;
+	}
 	return res;
 }
 
@@ -3611,7 +3787,7 @@ void printInterCodeOperand(struct InterCodeOperand * ope) {
 	if(ope->var == -1) {
 		printf("(const)%d", ope->idx);
 	}else {
-		printf("MEM[%d]<%d>", ope->var, ope->idx);
+		printf("MEM[%d]", ope->var);
 	}
 }
 struct Block ** jumpToBlock;
@@ -3631,9 +3807,6 @@ void printInterCode(struct InterCode * inc) {
 		s2 = " = getchar";
 	}else if(inc->type == PUTCHAR) {
 		s1 = "putchar ";
-	}else if(inc->type == NOP) {
-		printf("NOP?? WTF??\n");
-		return;
 	}else if(inc->type == ASSIGN_ADD) {
 		s2 = " = "; s3 = " + ";
 	}else if(inc->type == GOTO) {
@@ -3713,6 +3886,18 @@ void printInterCode(struct InterCode * inc) {
 		s1 = "*"; s2 = " = ";
 	}else if(inc->type == DEREF_ASSIGN_CHAR) {
 		s1 = "*(char)"; s2 = " = ";
+	}else if(inc->type == LD) {
+		printInterCodeOperand(inc->a); printf(" = (int *)"); printInterCodeOperand(inc->b); printf("[%d]\n", inc->n);
+		return;
+	}else if(inc->type == LD_CHAR) {
+		printInterCodeOperand(inc->a); printf(" = (char *)"); printInterCodeOperand(inc->b); printf("[%d]\n", inc->n);
+		return;
+	}else if(inc->type == ST) {
+		printf("(int *)"); printInterCodeOperand(inc->a); printf("[%d] = ", inc->n); printInterCodeOperand(inc->b); printf("\n");
+		return;
+	}else if(inc->type == ST_CHAR) {
+		printf("(char *)"); printInterCodeOperand(inc->a); printf("[%d] = ", inc->n); printInterCodeOperand(inc->b); printf("\n");
+		return;
 	}else if(inc->type == RETURN) {
 		s1 = "return ";
 	}else if(inc->type == ASSIGN_ADDRESS_OF) {
@@ -3731,6 +3916,15 @@ void printInterCode(struct InterCode * inc) {
 		s1 = "putint ";
 	}else if(inc->type == PHI) {
 		s2 = " = phi "; s3 = " ";
+	}else if(inc->type == ASSIGN_STR) {
+		printf("la "), printInterCodeOperand(inc->a), printf(" .data str%d\n", inc->n);
+		return;
+	}else if(inc->type == ASSIGN_DATA) {
+		printf("la "), printInterCodeOperand(inc->a), printf(" .data data%d\n", inc->n);
+		return;
+	}else if(inc->type == NOP) {
+		printf("nop\n");
+		return;
 	}else {
 		printf("??INTERCODE??\n");
 	}
@@ -3758,8 +3952,7 @@ int isJump(int x) {
 	return x == IF_GOTO || x == IF_FALSE_GOTO || x == GOTO;
 }
 int isAssign(int x) {
-	//printf("?");//isload
-	return x == GET_ARGU || x == MALLOC || x == GETCHAR 
+	return x == GET_ARGU || x == MALLOC || x == GETCHAR
 	|| x == ASSIGN_DEREF_CHAR || x == ASSIGN_DEREF || x == ASSIGN_DEREF_ADDRESS 
 	|| x == ASSIGN || x == ASSIGN_LOGICAL_NOT || x == ASSIGN_NOT || x == ASSIGN_NEGATE || x == ASSIGN_CHAR
 	|| x == ASSIGN_ADDRESS || x == ASSIGN_INCLUSIVE_OR || x == ASSIGN_EXCLUSIVE_OR || x == ASSIGN_AND
@@ -3767,13 +3960,143 @@ int isAssign(int x) {
 	|| x == ASSIGN_MUL || x == ASSIGN_NOT_EQUAL_TO || x == ASSIGN_EQUAL_TO || x == ASSIGN_GREATER_THAN_OR_EQUAL_TO
 	|| x == ASSIGN_LESS_THAN_OR_EQUAL_TO || x == ASSIGN_GREATER_THAN || x == ASSIGN_LESS_THAN || x == ASSIGN_LOGIC_OR
 	|| x == ASSIGN_LOGIC_AND || x == INT_TO_CHAR || x == CHAR_TO_INT || x == ASSIGN_ADDRESS_OF || x == ASSIGN_ADD
-	|| x == LD || x == LD_CHAR;
+	|| x == LD || x == LD_CHAR || x == ASSIGN_DATA || x == ASSIGN_STR;
 }
 
-int stopAtLexer = 0, stopAt3AddrCode = 1, interpreter = 0;
+void printData() {
+	printf(".data\n");
+	struct List * p = data;
+	int cnt = nData;
+	while(p) {
+		printf("d%d: .byte", p->mul);
+		int i = 0;
+		for( ; i < p->value; i++) {
+			printf(" 0,");
+		}
+		printf("\n");
+		p = p->next;
+	}
+	p = data1;
+	while(p) {
+		printf("data%d: .byte", p->mul);
+		int i = 0;
+		for(; i < p->value; i++) {
+			printf(" 0,");
+		}
+		printf("\n");
+		p = p->next;
+	}
+	cnt = nString;
+	struct StringList * q = strings;
+	while(q) {
+		printf("str%d: .byte", --cnt);
+		int len = 0;
+		while(q->name[len]) {
+			printf(" %d,", q->name[len]);
+			len++;
+		}
+		printf(" 0\n");
+		q = q->next;
+	}
+}
+
+int * mapReg;
+
+int maxReg = 25;
+
+int * dangerous;
+
+int * memoryLocate;
+
+int * regAssign;
+
+int * regAlloc;
+
+int oo;
+
+int load(struct FuncList * p, int idx, int * liveness) {
+	int reg;
+	int memLoc = memoryLocate[idx];
+	//printf("%d %d\n",idx, memLoc);
+	if(memLoc > 0) {
+		reg = regAlloc[memLoc - 1];
+	}else {
+		reg = p->regAlloc[-memLoc];
+	}
+	//printf("%d\n",reg);
+	if(reg == -1) {
+		if(oo == 0) {
+			if(memLoc > 0) { 
+				printf("\tlw $a0, d%d\n", idx);
+			}else {
+				printf("\tlw $a0, %d($sp)\n", -memLoc * 4);
+			}
+			oo++;
+			return 4;//a0
+		}else if(oo == 1) {
+			if(memLoc > 0) { 
+				printf("\tlw $v0, d%d\n", idx);
+			}else {
+				printf("\tlw $v0, %d($sp)\n", -memLoc * 4);
+			}
+			oo++;
+			return 2;//v0
+		}else {
+			printf("54749110\n");
+		}
+	}else {
+		/*
+		if(regAssign[reg] != -1 && regAssign[reg] != idx) {
+			int memLoc = memoryLocate[regAssign[reg]];
+			if(memLoc > 0) {
+				printf("\tsw $%d, d%d\n", mapReg[reg], regAssign[reg]);
+			}else {
+				if(liveness[-memLoc]) {
+					printf("\tsw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
+				}
+			}
+			regAssign[reg] = -1;
+		}
+		if(memLoc > 0) { 
+			printf("\tlw $%d, d%d\n", mapReg[reg], idx);
+		}else {
+			printf("\tlw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
+		}
+		regAssign[reg] = idx;*/
+		return mapReg[reg];
+	}
+}
+
+int locateTarget(struct FuncList * p, int idx, int * liveness) {
+	int reg;
+	int memLoc = memoryLocate[idx];
+	if(memLoc > 0) {
+		reg = regAlloc[memLoc - 1];
+	}else {
+		reg = p->regAlloc[-memLoc];
+	}
+	//printf("target %d %d\n", idx, reg);
+	if(reg == -1) {
+		return 2;//v0
+	}else {
+		/*if(regAssign[reg] != -1 && regAssign[reg] != idx) {
+			int memLoc = memoryLocate[regAssign[reg]];
+			if(memLoc > 0) {
+				printf("\tsw $%d, d%d\n", mapReg[reg], idx);
+			}else {
+				printf("\tsw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
+			}
+			regAssign[reg] = -1;
+		}
+		regAssign[reg] = idx;*/
+		return mapReg[reg];
+	}
+}
+
+int stopAtLexer = 0, stopAt3AddrCode = 0, interpreter = 0, outputInterCode = 0;
 
 int main() {
-	//freopen("gadget.c", "r", stdin);
+	//freopen("basicopt1-hetianxing.c", "r", stdin);
 	examine = 1;
 	initBasicTypeName();
 	initModVariables();
@@ -3786,7 +4109,10 @@ int main() {
 		push_back(&program, &length, &capacity, __stdio__printf__[i]);
 	}
 	while(-1 != (c = getchar())) {
-		//printf("%c\n", c);
+		//intf("%c\n", c);
+		//if(c == 64) {
+		//	break;
+		//}
 		push_back(&program, &length, &capacity, c);
 	}
 	for(i = 0; i < 5; i++) {
@@ -3821,6 +4147,7 @@ int main() {
 		printTokens();
 	}else {
 		parseProgram();
+		struct FuncList * funcMain = 0;
 		//printf("parseProgramComplete\n");
 		jumpTo = (struct Instruction **)malloc(sizeof(struct Instruction *) * nLabel);
 		struct FuncList * p = funcList;
@@ -3843,6 +4170,7 @@ int main() {
 				}
 				p = p->next;
 			}
+			printData();
 		}
 		if(interpreter) {
 			//printf("\ninterpreting...\n");
@@ -3861,27 +4189,43 @@ int main() {
 			p = funcList;
 			while(p) {
 				if(!strcmp(p->f->name, "main")) {
+					
 					run(p->f);
 					break;
 				}
 				p = p->next;
 			}
 		}
-		return 0;
 		p = funcList;
 //        int nBlock = 0;
+		memoryLocate = (int *)malloc(sizeof(int) * totIndex);
+		//printf("totIndex = %d\n", totIndex);
+		int globalVars;
 		jumpToBlock = (struct Block **)malloc(sizeof(struct Block *) * nLabel);
 		while(p) {//分开basic block!
+			//printf("%s %d\n", p->f->name, strcmp(p->f->name, "main"));
+			//printf("%s %s\n", p->f->name, "main");
+			if(!strcmp(p->f->name, "main")) {
+				funcMain = p;
+				//printf("main %d %s\n", p->f, p->f->name);
+			}
 			struct Instruction * inst = p->f->insts;
+		//	printf("%d\n", inst);
 			while(inst) {
 //                nBlock++;
+				//printf("%d\n", inst);
 				struct Block * blk = newBlock();
 				blk->next = p->blocks;
 				p->blocks = blk;
+				//printf("%d\n", inst);
 				while(inst && inst->type == LABEL) {
+					//printf("%d %d\n", inst->n, blk->index);
 					jumpToBlock[inst->n] = blk;
+					//printf("%d\n", inst);
 					inst = inst->next;
+				//	printf("%d\n", inst);
 				}
+				//printf("%d\n", inst);
 				while(inst && !isJump(inst->type) && inst->type != LABEL) {
 					struct InterCode * inc = convertToInterCode(inst);
 					if(inc->type != NOP) {
@@ -3898,10 +4242,87 @@ int main() {
  					}
 					inst = inst->next;
 				}
+				if(blk->incs == 0) {
+					blk->incs = newInterCode();
+					blk->incs->type = 7;
+				}
  			}
+			struct List * q = p->f->occupy;
+			p->cnt = 0;
+			while(q) {
+				//printf("%s occupy %d\n", p->f->name, q->value);
+				if(p->f == chief) {
+					memoryLocate[q->value] = ++p->cnt;//全局变量>0
+				}else {
+					memoryLocate[q->value] = -(p->cnt++);//局部变量<=0
+					//printf("locate %d %d\n", q->value, -(p->cnt-1));
+				}
+				q = q->next;
+			}
+			if(p->f == chief) {
+				globalVars = p->cnt;
+			}
+			struct Variable * var = p->f->argu;
+			p->cntArgu = 0;
+			while(var) {
+				p->cnt++;
+				p->cntArgu++;
+				var = var->next;
+			}
+			int cnt1 = 0;
+			var = p->f->argu;
+			while(var) {
+				cnt1++;
+				memoryLocate[var->index] = -(p->cnt - cnt1);
+				//printf("%d %d\n", var->index, -(p->cnt - cnt1));
+				var = var->next;
+			}//参数在栈帧的最上部, 直接使用caller push进来的参数. sp在函数体中不变, 函数开始和结束时移动该函数使用的栈帧大小; fp在argu操作时push, callee开始时会把fp顶端自己的参数部分pop(相当于直接用于自己的栈帧). 这样sp和fp都不用备份(?!)
+			//printf("%s %d\n", p->f->name, p->cnt);
 			p = p->next;
 		}
-		
+		if(funcMain == 0) {
+			ERROR(99);
+		}
+		//for(i = 0; i < totIndex; i++) {
+		//	printf("%d %d\n", i, memoryLocate[i]);
+		//}
+		if(0) {
+			p = funcList;
+			while(p) {
+		printf("[InterCode Function %s:]\n", p->f->name);
+				struct List * q = p->f->occupy;
+				while(q) {
+					printf("%d\n", q->value);
+					q = q->next;
+				}
+				struct Block * blk = p->blocks;
+				while(blk) {
+					printf("Block %d\n", blk->index);
+					struct InterCode * inc = blk->phis, * inc1;
+					blk->phis = 0;
+					while(inc) {
+						inc1 = inc->next;
+						inc->next = blk->phis;
+						blk->phis = inc;
+						inc = inc1;
+					}
+					inc = blk->phis;
+					while(inc) {
+						printInterCode(inc);
+						inc = inc->next;
+					}
+					inc = blk->incs;
+					while(inc) {
+						printInterCode(inc);
+						inc = inc->next;
+					}
+					blk = blk->next;
+				}
+				p = p->next;
+			}
+			printData();
+
+		}
 		p = funcList;//给basic block连边, 做cfg.
 		while(p) {
 			//printf("block\n");
@@ -3913,224 +4334,969 @@ int main() {
 				//printf("block %d\n", blk->index);
 				if(blk->incs) {
 					if(blk->incs->type == IF_GOTO || blk->incs->type == IF_FALSE_GOTO) {
-						blk->edges[0] = jumpToBlock[blk->incs->n];
-						blk->edges[1] = prevBlock;
+						pushEdge(blk, 0, jumpToBlock[blk->incs->n]);
+						pushEdge(blk, 1, prevBlock);
 					}else if(blk->incs->type == GOTO) {
-						blk->edges[0] = jumpToBlock[blk->incs->n];
+						pushEdge(blk, 0, jumpToBlock[blk->incs->n]);
 					}else {
-						blk->edges[0] = prevBlock;
+						pushEdge(blk, 0, prevBlock);
 					}
 				}
 				//printf("block %d\n", blk->index);
+				prevBlock = blk;
+				blk = blk->next;
+			}
+			blk = p->blocks;
+
+			while(blk) {
+				struct InterCode * inc = blk->incs;
+				while(inc) {
+					inc->liveness = (int *)malloc(sizeof(int) * p->cnt);
+					inc = inc->next;
+				}
+				blk = blk->next;
+			}
+			int deadCode = 1;
+			while(deadCode) {
+				deadCode = 0;
+				int changed = 1;
+				blk = p->blocks;
+				//printf("123\n");
+				while(blk) {
+					struct InterCode * inc = blk->incs;
+					while(inc) {
+						int i;
+						for(i = 0; i < p->cnt; i++) {
+							inc->liveness[i] = 0;
+						}
 				
+						inc = inc->next;
+					}
+					blk = blk->next;
+				}
+				//printf("123\n");
+				
+				while(changed) {//做局部变量活性分析.
+					//printf("changed %s\n", p->f->name);
+					changed = 0;
+					blk = p->blocks;
+					while(blk) {
+						//printf("blk %d\n", blk->index);
+						struct InterCode * inc = blk->incs;
+						while(inc) {
+							//printf("inc %d\n", inc->type);
+							if(inc->next) {
+								int i = 0;
+								for(; i < p->cnt; i++) {
+									inc->next->liveness[i] = inc->liveness[i];
+								}
+								
+								if(isAssign(inc->type) && inc->a && inc->a->var != -1 && memoryLocate[inc->a->var] <= 0) {
+									//if(inc->a->var == 247) {
+										//printf("set 0 %d %d %d %d\n", inc->a->var, -memoryLocate[inc->a->var], p->cnt, inc->next->liveness[-memoryLocate[inc->a->var]]);
+									//	printInterCode(inc->next);
+									//	printInterCode(inc);
+								//
+									//printf("%s %d %d\n", p->f->name, p->cnt, -memoryLocate[inc->a->var]);
+									inc->next->liveness[-memoryLocate[inc->a->var]] = 0;
+								}
+								if(!isAssign(inc->type) && inc->a && inc->a->var != -1 && memoryLocate[inc->a->var] <= 0) {
+									inc->next->liveness[-memoryLocate[inc->a->var]] = 1;
+								}
+								if(inc->b && inc->b->var != -1 && memoryLocate[inc->b->var] <= 0) {
+									//if(inc->b->var == 247) {
+									//	printf("! %d\n", -memoryLocate[inc->b->var]);
+									//}
+									//printf("%s %d %d\n", p->f->name, p->cnt, -memoryLocate[inc->b->var]);
+									inc->next->liveness[-memoryLocate[inc->b->var]] = 1;
+								}
+								if(inc->c && inc->c->var != -1 && memoryLocate[inc->c->var] <= 0) {
+									//printf("%s %d %d\n", p->f->name, p->cnt, -memoryLocate[inc->c->var]);
+									inc->next->liveness[-memoryLocate[inc->c->var]] = 1;
+								}
+							}else {
+								//printf("?!\n");
+								if(blk->pres && blk->pres->y->incs) {
+									//printf("pres\n");
+									if(!isAssign(inc->type) && inc->a && inc->a->var != -1 && memoryLocate[inc->a->var] <= 0) {
+										//printf("A\n");
+										struct Edge * edge = blk->pres;
+										while(edge) {
+											if(edge->y->incs->liveness[-memoryLocate[inc->a->var]] == 0) {
+											//printf("a%d %d\n", edge->y->incs, -memoryLocate[inc->a->var]);
+												edge->y->incs->liveness[-memoryLocate[inc->a->var]] = 1;
+												//printf("%s %d %d\n", p->f->name, p->cnt, -memoryLocate[inc->a->var]);
+												changed = 1;
+											}
+											edge = edge->next;
+										}
+
+									}
+									if(inc->b && inc->b->var != -1 && memoryLocate[inc->b->var] <= 0) {
+										//printf("B\n");
+										struct Edge * edge = blk->pres;
+										while(edge) {
+											if(edge->y->incs->liveness[-memoryLocate[inc->b->var]] == 0) {
+												//printf("b%d %d\n", edge->y->incs, -memoryLocate[inc->b->var]);
+												edge->y->incs->liveness[-memoryLocate[inc->b->var]] = 1;
+												//printf("%s %d %d\n", p->f->name, p->cnt, -memoryLocate[inc->b->var]);
+												changed = 1;
+											}
+											edge = edge->next;
+										}
+
+									}
+									if(inc->c && inc->c->var != -1 && memoryLocate[inc->c->var] <= 0) {
+										//printf("C\n");
+										struct Edge * edge = blk->pres;
+										while(edge) {
+											if(edge->y->incs->liveness[-memoryLocate[inc->c->var]] == 0) {
+												//printf("c%d %d\n", edge->y->incs, -memoryLocate[inc->c->var]);
+												edge->y->incs->liveness[-memoryLocate[inc->c->var]] = 1;
+												//printf("%s %d %d\n", p->f->name, p->cnt, -memoryLocate[inc->c->var]);
+												changed = 1;
+											}
+											edge = edge->next;
+										}
+
+									}
+									//printf("pres over\n");
+								}
+								struct Edge * edge = blk->pres;
+								while(edge) {
+									int i = 0;
+									for(; i < p->cnt; i++) {
+										if(edge->y->incs->liveness[i] == 0 && inc->liveness[i] == 1) {
+											edge->y->incs->liveness[i] = 1;
+											//printf("%d %d\n", edge->y->incs, i);
+											changed = 1;
+										}
+									}
+									edge = edge->next;
+								}
+							//	printf("pres over2\n");
+								
+							}
+							inc = inc->next;
+						}
+						//printf("blk over\n");
+						blk = blk->next;
+					}
+				}
+					
+				blk = p->blocks;
+				while(blk) {
+					//printf("block %d\n", blk->index);
+					struct InterCode * inc = blk->incs, * prev = 0;
+					while(inc) {
+						if(inc->type == DECL_INT || inc->type == DECL_CHAR || inc->type == DECL_POINTER || inc->type == GET_ARGU || isAssign(inc->type) && inc->type != CALL && inc->type != GETCHAR && inc->a && inc->a->var != -1 && memoryLocate[inc->a->var] <= 0 && inc->liveness[-memoryLocate[inc->a->var]] == 0) {
+							//if(inc->type == ASSIGN_STR) printf("deadCode Elimination type = %d %d %d\n", inc->type, inc->a->var, -memoryLocate[inc->a->var]);
+							//printInterCode(inc);
+							deadCode = 1;
+							if(prev == 0) {
+
+								blk->incs = inc->next;
+							}else {
+								prev->next = inc->next;
+							}
+							inc = inc->next;
+						}else {
+							prev = inc;
+							inc = inc->next;
+						}
+					}
+					if(blk->incs == 0) {
+						//printf("1\n");
+						blk->incs = newInterCode();
+						//printf("2\n");
+						blk->incs->type = NOP;
+						blk->incs->liveness = (int *)malloc(sizeof(int) * p->cnt);
+						//printf("3\n");
+					}
+					blk = blk->next;
+				}
+				//printf("!\n");
+			}
+			p = p->next;
+		}
+		p = funcList;
+		dangerous = (int *)malloc(sizeof(int) * totIndex);
+		for(i = 0; i < totIndex; i++) {
+			dangerous[i] = 0;
+		}
+		while(p) {
+			struct Block * blk = p->blocks, * prevBlock = 0;
+			while(blk) {
 				struct InterCode * inc = blk->incs, *inc1;//把指令顺序正过来
 				blk->incs = 0;
 				while(inc) {
-					//printInterCode(inc);
+
+					if(inc->type == ASSIGN_ADDRESS_OF) {
+						//printf("dangerous %d\n", inc->b->var);
+						dangerous[inc->b->var] = 1;
+					}
+
 					inc1 = inc->next;
 					inc->next = blk->incs;
 					blk->incs = inc;
 					inc = inc1;
 				}
 				prevBlock = blk;
-				//printf("block %d\n", blk->index);
-				
 				blk = blk->next;
-//								printf("block %d\n", blk);
-
 			}
-			//	printf("block\n");
 			blk = p->blocks;
-			//	printf("block\n");
 			p->blocks = 0;
-			//	printf("block\n");
 			while(blk) {//把blocks的顺序正过来
 				prevBlock = blk->next;
 				blk->next = p->blocks;
 				p->blocks = blk;
 				blk = prevBlock;
 			}
-			//				printf("block\n");
-
 			p = p->next;
-			//printf("%d\n", p);
 		}
-		return 0;
-		for(i = 0; i < totIndex; i++) {//枚举变量.
-			int cnt = 0;
-			p = funcList;
-			struct FuncList * cur;
-			while(p) {
-				int occur = 0;
-				struct Block * blk = p->blocks;
-				while(blk) {
-					//printf("block[%d]", blk->index);
-					struct InterCode * inc = blk->incs;
-					while(inc) {
-						//printf("Inc[%d] %d", inc->type, isAssign(inc->type));
-						if(inc->type == ASSIGN_ADDRESS_OF && inc->a->var == i) {
-							cnt += 2;
-							break;
-							//printf("aao");
-						}else if(isAssign(inc->type) && inc->a->var == i) {
-							occur = 1;
-							cur = p;
-							//printf("ass");
-						}else {
-							//printf("nor");
-						}
-						inc = inc->next;
-					}
-					//printf("[/block]");
-					blk = blk->next;
-				}
-				cnt += occur;
-				if(cnt >= 2)	
-				{
-					break;
-				}
-				p = p->next;
-			}
-			//printf("%d %d\n", i, cnt);
-			if(cnt == 1) {//仅出现在一个函数中的变量, 而且没有被取地址!
-				struct Block * blk;
-				struct InterCode * inc;
-				blk = cur->blocks;
-				int stamp = 0;//给所有的赋值语句打戳.
-				while(blk) {
-					inc = blk->incs;
-					blk->rtn = -1;
-					blk->visit = 0;
-					while(inc) {
-						if(isAssign(inc->type) && inc->a->var == i) {
-							inc->a->idx = stamp++;
-							blk->rtn = stamp - 1;//出block时的副本的戳.
-						}
-						inc = inc->next;
-					}
-					blk->sources = 0;
-					blk = blk->next;
-				}
-				blk = cur->blocks;
-				while(blk) {
-					inc = blk->incs;
-					int used = 0;
-					while(inc) {
-						if(inc->a && !isAssign(inc->type) && inc->a->var == i) {
-							used = 1;
-							break;
-						}
-						if(inc->b && inc->b->var == i) {
-							used = 1;
-							break;
-						}
-						if(inc->c && inc->c->var == i) {
-							used = 1;
-							break;
-						}
-						inc = inc->next;
-					}//判断是否用到过.
-					//printf("blk = %d, var = %d, rtn = %d\n", blk->index, i, blk->rtn);
-					if(blk->rtn != -1) {
-						int j;
-						for(j = 0; j < 2; j++) {
-							if(blk->edges[j]) {
-								clck++;
-								//printf("clck = %d\n", clck);
-								dfs(blk->edges[j], blk->rtn);//副本传递
-							}
-						}
-					}
-					blk->used = used;
-					blk = blk->next;
-				}
-				//printf("!!\n");
-				blk = cur->blocks;
-				while(blk) {
-					if(blk->used) {
-						int source = -1;
-						struct List * lst = blk->sources;
-						if(lst) {
-							//printf("1\n");
-							if(lst->next) {
-								//printf("2\n");
-								source = lst->value;
-								lst = lst->next;
-								while(lst) {
-									//printf("3\n");
-									struct InterCode * inc = newInterCode();
-									inc->type = PHI;
-									inc->a = newInterCodeOperand();
-									inc->b = newInterCodeOperand();
-									inc->c = newInterCodeOperand();
-									
-									inc->a->var = inc->b->var = inc->c->var = i;
-									inc->a->idx = stamp++;
-									inc->b->idx = source;
-									inc->c->idx = lst->value;
-									inc->next = blk->phis;
-									blk->phis = inc;
-									source = stamp - 1;
-									lst = lst->next;
-								}
-							}else {
-								source = lst->value;
-							}
-						}
-						inc = blk->incs;
-						while(inc) {//引用确定
-							if(isAssign(inc->type) && inc->a->var == i) {
-								source = inc->a->idx;
-							}
-							if(!isAssign(inc->type) && inc->a && inc->a->var == i) {
-								inc->a->idx = source;
-							}
-							if(inc->b && inc->b->var == i) {
-								inc->b->idx = source;
-							}
-							if(inc->c && inc->c->var == i) {
-								inc->c->idx = source;
-							}
-							inc = inc->next;
-						}
-					}
-					blk = blk->next;
-				}
-
-
-			}
-		}
+		int * intervalL = (int *)malloc(sizeof(int) * totIndex), * intervalR = (int *)malloc(sizeof(int) * totIndex);
+		int * o = (int *)malloc(sizeof(int) * totIndex);
+		int * inUse = (int *)malloc(sizeof(int) * maxReg);
 		p = funcList;
+		int localMaxReg = 0;//函数最多使用几个寄存器.
 		while(p) {
-			printf("[SSA InterCode Function %s:]\n", p->f->name);
 			struct Block * blk = p->blocks;
+			p->numReg = -1;//用到的寄存器数量
+			int stamp = 0;//时间.
+			for(i = 0; i < p->cnt; i++) {
+				intervalL[i] = infi;
+				intervalR[i] = -infi;
+			}
 			while(blk) {
-				printf("Block %d\n", blk->index);
-				struct InterCode * inc = blk->phis, * inc1;
-				blk->phis = 0;
+				//printf("Block %d\n", blk->index);
+				struct InterCode * inc = blk->incs;
 				while(inc) {
-					inc1 = inc->next;
-					inc->next = blk->phis;
-					blk->phis = inc;
-					inc = inc1;
-				}
-				inc = blk->phis;
-				while(inc) {
-					printInterCode(inc);
-					inc = inc->next;
-				}
-				inc = blk->incs;
-				while(inc) {
-					printInterCode(inc);
+					stamp++;
+					for(i = 0; i < p->cnt; i++) {
+						//printf("%d ", inc->liveness[i]);
+						if(inc->liveness[i]) {
+							intervalL[i] = min(intervalL[i], stamp);
+							intervalR[i] = max(intervalR[i], stamp);
+						}
+					}
+					//printf("\n");
 					inc = inc->next;
 				}
 				blk = blk->next;
 			}
+			struct List * q = p->f->occupy;
+			while(q) {
+				if(dangerous[q->value]) {
+					//printf("%d %d\n", q->value, -memoryLocate[q->value] * 4);
+					intervalL[-memoryLocate[q->value]] = infi;
+				}
+				q = q->next;
+			}
+			for(i = 0; i < p->cnt; i++) {
+				o[i] = i;
+			}
+			for(i = 0; i < p->cnt; i++) {
+				int j;
+				for(j = i + 1; j < p->cnt; j++) {
+					if(intervalL[o[i]] > intervalL[o[j]]) {
+						int tmp = o[i];
+						o[i] = o[j];
+						o[j] = tmp;
+					}
+				}
+			}
+			for(i = 0; i < maxReg; i++) {
+				inUse[i] = -1;
+			}
+			p->regAlloc = (int *)malloc(sizeof(int) * p->cnt);
+			for(i = 0; i < p->cnt; i++) {
+				p->regAlloc[i] = -1;
+			}
+			for(i = 0; i < p->cnt; i++) {
+				if(intervalL[o[i]] == infi) {
+					continue;
+				}
+				//printf("interval %d %d\n", intervalL[o[i]], intervalR[o[i]]);
+				int ok = 0;
+				int j;
+				for(j = 0; j < maxReg; j++) {
+					if(inUse[j] && intervalR[inUse[j]] < intervalL[o[i]]) {
+						inUse[j] = -1;
+					}
+					if(inUse[j] == -1) {
+						inUse[j] = o[i];
+						p->regAlloc[o[i]] = j;
+						ok = 1;
+						p->numReg = max(p->numReg, j);
+						break;
+					}
+				}
+				if(ok == 0) {
+					int spill = 0;
+					for(j = 0; j < maxReg; j++) {
+						if(intervalR[inUse[j]] > intervalR[inUse[spill]]) {
+							spill = j;
+						}
+					}
+					if(intervalR[inUse[j]] > intervalR[o[i]]) {
+						p->regAlloc[inUse[spill]] = -1;
+						inUse[spill] = o[i];
+						p->regAlloc[o[i]] = spill;
+					}else {
+						p->regAlloc[o[i]] = -1;
+					}
+				}
+			}
+			p->numReg++;
+			localMaxReg = max(localMaxReg, p->numReg);
 			p = p->next;
 		}
+		regAlloc = (int *)malloc(sizeof(int) * globalVars);
+		for(i = 0; i < globalVars; i++) {
+			regAlloc[i] = -1;
+		}
+		struct List * tmp = data;
+		while(tmp && localMaxReg < maxReg) {
+			int i = tmp->mul;
+			if(!dangerous[i] && memoryLocate[i] > 0) {
+				//printf("%d\n", memoryLocate[i]);
+				regAlloc[memoryLocate[i] - 1] = localMaxReg;
+				localMaxReg++;
+			}
+			tmp = tmp->next;
+		}
+		/*return 0;
+		  for(i = 0; i < totIndex; i++) {//枚举变量.
+		  int cnt = 0;
+		  p = funcList;
+		  struct FuncList * cur;
+		  while(p) {
+		  int occur = 0;
+		  struct Block * blk = p->blocks;
+		  while(blk) {
+		//printf("block[%d]", blk->index);
+		struct InterCode * inc = blk->incs;
+		while(inc) {
+		//printf("Inc[%d] %d", inc->type, isAssign(inc->type));
+		if(inc->type == ASSIGN_ADDRESS_OF && inc->a->var == i) {
+		cnt += 2;
+		break;
+//printf("aao");
+}else if(isAssign(inc->type) && inc->a->var == i) {
+occur = 1;
+cur = p;
+//printf("ass");
+}else {
+		//printf("nor");
+		}
+		inc = inc->next;
+		}
+//printf("[/block]");
+blk = blk->next;
+}
+cnt += occur;
+if(cnt >= 2)	
+{
+break;
+}
+p = p->next;
+}
+//printf("%d %d\n", i, cnt);
+if(cnt == 1) {//仅出现在一个函数中的变量, 而且没有被取地址!
+struct Block * blk;
+struct InterCode * inc;
+blk = cur->blocks;
+int stamp = 0;//给所有的赋值语句打戳.
+while(blk) {
+inc = blk->incs;
+blk->rtn = -1;
+blk->visit = 0;
+while(inc) {
+if(isAssign(inc->type) && inc->a->var == i) {
+inc->a->idx = stamp++;
+blk->rtn = stamp - 1;//出block时的副本的戳.
+}
+inc = inc->next;
+}
+blk->sources = 0;
+blk = blk->next;
+}
+blk = cur->blocks;
+while(blk) {
+inc = blk->incs;
+int used = 0;
+while(inc) {
+if(inc->a && !isAssign(inc->type) && inc->a->var == i) {
+used = 1;
+break;
+}
+if(inc->b && inc->b->var == i) {
+used = 1;
+break;
+}
+if(inc->c && inc->c->var == i) {
+used = 1;
+		break;
+}
+inc = inc->next;
+}//判断是否用到过.
+//printf("blk = %d, var = %d, rtn = %d\n", blk->index, i, blk->rtn);
+if(blk->rtn != -1) {
+	int j;
+	for(j = 0; j < 2; j++) {
+		if(blk->edges[j]) {
+			clck++;
+			//printf("clck = %d\n", clck);
+			dfs(blk->edges[j], blk->rtn);//副本传递
+		}
+	}
+}
+blk->used = used;
+blk = blk->next;
+}
+//printf("!!\n");
+blk = cur->blocks;
+while(blk) {
+	if(blk->used) {
+		int source = -1;
+		struct List * lst = blk->sources;
+		if(lst) {
+			//printf("1\n");
+			if(lst->next) {
+				//printf("2\n");
+				source = lst->value;
+				lst = lst->next;
+				while(lst) {
+					//printf("3\n");
+					struct InterCode * inc = newInterCode();
+					inc->type = PHI;
+					inc->a = newInterCodeOperand();
+					inc->b = newInterCodeOperand();
+					inc->c = newInterCodeOperand();
 
-        }
+					inc->a->var = inc->b->var = inc->c->var = i;
+					inc->a->idx = stamp++;
+					inc->b->idx = source;
+					inc->c->idx = lst->value;
+					inc->next = blk->phis;
+					blk->phis = inc;
+					source = stamp - 1;
+					lst = lst->next;
+				}
+			}else {
+				source = lst->value;
+			}
+		}
+		inc = blk->incs;
+		while(inc) {//引用确定
+			if(isAssign(inc->type) && inc->a->var == i) {
+				source = inc->a->idx;
+			}
+			if(!isAssign(inc->type) && inc->a && inc->a->var == i) {
+				inc->a->idx = source;
+			}
+			if(inc->b && inc->b->var == i) {
+				inc->b->idx = source;
+			}
+			if(inc->c && inc->c->var == i) {
+				inc->c->idx = source;
+			}
+			inc = inc->next;
+		}
+	}
+	blk = blk->next;
+}
+
+
+}
+}*/	
+		if(outputInterCode == 1) {
+			p = funcList;
+			while(p) {
+				printf("regist%d\n", p->numReg);
+				printf("[InterCode Function %s:]\n", p->f->name);
+				struct Block * blk = p->blocks;
+				while(blk) {
+					printf("Block %d\n", blk->index);
+					struct InterCode * inc = blk->phis, * inc1;
+					blk->phis = 0;
+					while(inc) {
+						inc1 = inc->next;
+						inc->next = blk->phis;
+						blk->phis = inc;
+						inc = inc1;
+					}
+					inc = blk->phis;
+					while(inc) {
+						printInterCode(inc);
+						inc = inc->next;
+					}
+					inc = blk->incs;
+					while(inc) {
+						printInterCode(inc);
+						inc = inc->next;
+					}
+					blk = blk->next;
+				}
+				p = p->next;
+			}
+			printData();
+
+		}
+		mapReg = (int *)malloc(sizeof(int) * maxReg);
+		//mapReg[0] = 3, 5, 6, 
+		mapReg[0] = 3;
+		for(i = 1; i < maxReg; i++) {
+			mapReg[i] = i + 4;
+		}
+		printf(".text\n");
+		p = funcList;
+		regAssign = (int *)malloc(sizeof(int) * maxReg);
+		while(p) {
+			if(strcmp(p->f->name, CHIEF)) {
+				printf("func%d%s:\n", p->f, p->f->name);
+				////////////////$sp, $fp
+				printf("\taddiu $fp, $fp, %d\n", -(p->cnt - p->cntArgu + p->numReg + 2) * 4);//fp = gp
+				
+				int i = 0;
+				for(; i < p->numReg; i++) {
+					printf("\tsw $%d, %d($fp)\n", mapReg[i], i * 4);//顶部备份寄存器!
+				}
+				printf("\tsw $31, %d($fp)\n", p->numReg * 4);
+				printf("\tsw $sp, %d($fp)\n", p->numReg * 4 + 4);
+				printf("\taddiu $sp, $fp, %d\n", (p->numReg + 2) * 4);
+				struct Variable * var = p->f->argu;
+				while(var) {
+					int memLoc = memoryLocate[var->index];
+					if(p->regAlloc[-memLoc] != -1) {
+						printf("\tlw $%d, %d($sp)\n", mapReg[p->regAlloc[-memLoc]], -memLoc * 4);
+					}
+					var = var->next;
+				}
+				
+			}else {
+				printf("\t.globl main\nmain:\n\tmove $fp, $sp\n");
+				struct List * tmp = data;
+				while(tmp) {
+					if(regAlloc[memoryLocate[tmp->mul] - 1] != -1) {
+						printf("\tla $%d, d%d\n", mapReg[regAlloc[memoryLocate[tmp->mul] - 1]], tmp->mul);
+					}
+					tmp = tmp->next;
+				}
+			}
+			for(i = 0; i < maxReg; i++) {
+				regAssign[i] = -1;
+			}
+			struct Block * blk = p->blocks;
+			while(blk) {
+				printf("block%d:\n", blk->index);
+				struct InterCode * inc = blk->incs;
+				while(inc) {
+
+					int a = -1, b = -1, c = -1;
+					//	printf("%d\n", inc->type);
+					if(inc->type == ASSIGN_ADDRESS_OF) {
+						if(isAssign(inc->type)) {
+							a = locateTarget(p, inc->a->var, inc->liveness);
+						}
+						//	printf("!\n");
+						if(memoryLocate[inc->b->var] > 0) {
+							printf("\tla $%d, d%d\n", a, inc->b->var);
+						}else {
+							printf("\taddiu $%d, $sp, %d\n", a, -memoryLocate[inc->b->var] * 4);
+						}
+					}else {
+						oo = 0;
+						if(!isAssign(inc->type) && inc->a && inc->a->var != -1) {
+							a = load(p, inc->a->var, inc->liveness);
+						}
+						//printf("oo %d\n", oo);
+						if(inc->b && inc->b->var != -1) {
+							b = load(p, inc->b->var, inc->liveness);
+						}
+						//printf("oo %d\n", oo);
+						if(inc->c && inc->c->var != -1) {
+							c = load(p, inc->c->var, inc->liveness);
+						}
+						//printf("oo %d\n", oo);
+						if(isAssign(inc->type)) {
+							a = locateTarget(p, inc->a->var, inc->liveness);
+						}
+					}
+					////
+					//print instrucion
+					////
+					//printInterCode(inc);
+					int t = inc->type;
+					//printf("%d %d\n", t, PUTINT);
+					if(t == MALLOC) {
+						printf("\tli $v0, 9\n");
+						if(inc->b->var == -1) {
+							printf("\tli $a0, %d\n", inc->b->idx);
+						}else {
+							printf("\tmove $a0, $%d\n", b);
+						}
+						printf("\tsyscall\n");
+						if(a != 2) {
+							printf("\tmove $%d, $v0\n", a);
+						}
+					}else if(t == GETCHAR) {
+						printf("\tli $v0, 12\n\tsyscall\n");
+						if(a != 2) {
+							printf("\tmove $%d, $v0\n", a);
+						}
+					}else if(t == PUTCHAR) {
+						printf("\tli $v0, 11\n");
+						if(inc->a->var != -1) {
+							printf("\tmove $a0, $%d\n", a);
+						}else {
+							printf("\tli $a0, %d\n", inc->a->idx);
+						}
+						printf("\tsyscall\n");
+					}else if(t == NOP) {
+						//!!
+						printf("\tnop\n");
+					}else if(t == ASSIGN_ADD) {
+						if(inc->b->var == -1) {
+							struct InterCodeOperand * tmp = inc->b;
+							inc->b = inc->c;
+							inc->c = tmp;
+							int tmp1 = b;
+							b = c;
+							c = tmp1;
+						}
+						if(inc->c->var != -1) {
+							printf("\tadd $%d, $%d, $%d\n", a, b, c);
+						}else {
+							printf("\taddiu $%d, $%d, %d\n", a, b, inc->c->idx);
+						}
+					}else if(t == GOTO) {
+						printf("\tb block%d\n", jumpToBlock[inc->n]->index);
+					}else if(t == LABEL) {
+						printf("!!!!LABEL!!!!\n");
+					}else if(t == IF_GOTO) {
+						printf("\tbne $0, $%d, block%d\n", a, jumpToBlock[inc->n]->index);
+					}else if(t == IF_FALSE_GOTO) {
+						printf("\tbeq $0, $%d, block%d\n", a, jumpToBlock[inc->n]->index);
+					}else if(t == ASSIGN_LOGICAL_NOT) {
+						if(inc->b->var == -1) {
+							printf("\tli $%d, %d\n", a, !inc->b->idx);
+						}else {
+							printf("\tseq $%d, $0, $%d\n", a, b);
+						}
+					}else if(t == ASSIGN_NOT) {
+						if(inc->b->var == -1) {
+							printf("\tli $%d, %d\n", a, ~inc->b->idx);
+						}else {
+							printf("\tnot $%d, $%d\n", a, b);
+						}
+					}else if(t == ASSIGN_NEGATE) {
+						if(inc->b->var == -1) {
+							printf("\tli $%d, %d\n", a, -inc->b->idx);
+						}else {
+							printf("\tsub $%d, $0, $%d\n", a, b);
+						}
+					}else if(t == ASSIGN || t == ASSIGN_CHAR || t == ASSIGN_ADDRESS || t == INT_TO_CHAR || t == CHAR_TO_INT) {
+						//printInterCode(inc);
+						if(inc->b->var == -1) {
+							printf("\tli $%d, %d\n", a, inc->b->idx);
+						}else {
+							if(a != b) {
+								printf("\tmove $%d, $%d\n", a, b);
+							}
+						}
+					}else if(t == ASSIGN_INCLUSIVE_OR) {
+						if(inc->b->var == -1) {
+							struct InterCodeOperand * tmp = inc->b;
+							inc->b = inc->c;
+							inc->c = tmp;
+							int tmp1 = b;
+							b = c;
+							c = tmp1;
+						}
+						if(inc->c->var == -1) {
+							printf("\tori $%d, $%d, %d\n", a, b, inc->c->idx);
+						}else {
+							printf("\tor $%d, $%d, $%d\n", a, b, c);
+						}
+					}else if(t == ASSIGN_EXCLUSIVE_OR) {
+						if(inc->b->var == -1) {
+							struct InterCodeOperand * tmp = inc->b;
+							inc->b = inc->c;
+							inc->c = tmp;
+							int tmp1 = b;
+							b = c;
+							c = tmp1;
+						}
+						if(inc->c->var == -1) {
+							printf("\txori $%d, $%d, %d\n", a, b, inc->c->idx);
+						}else {
+							printf("\txor $%d, $%d, $%d\n", a, b, c);
+						}
+					}else if(t == ASSIGN_AND) {
+						if(inc->b->var == -1) {
+							struct InterCodeOperand * tmp = inc->b;
+							inc->b = inc->c;
+							inc->c = tmp;
+							int tmp1 = b;
+							b = c;
+							c = tmp1;
+						}
+						if(inc->c->var == -1) {
+							printf("\tandi $%d, $%d, %d\n", a, b, inc->c->idx);
+						}else {
+							printf("\tand $%d, $%d, $%d\n", a, b, c);
+						}
+	
+					}else if(t == ASSIGN_SHR) {
+						if(inc->c->var == -1) {
+							printf("\tsra $%d, $%d, %d\n", a, b, inc->c->idx);
+						}else {
+							if(inc->b->var == -1) {
+								printf("\tli $v0, %d\n", inc->b->idx);
+								b = 2;
+							}
+							printf("\tsrav $%d, $%d, $%d\n", a, b, c);
+						}
+					}else if(t == ASSIGN_SHL) {
+						if(inc->c->var == -1) {
+							printf("\tsll $%d, $%d, %d\n", a, b, inc->c->idx);
+						}else {
+							if(inc->b->var == -1) {
+								printf("\tli $v0, %d\n", inc->b->idx);
+								b = 2;
+							}
+							printf("\tsllv $%d, $%d, $%d\n", a, b, c);
+						}
+					}else if(t == ASSIGN_SUB) {
+						if(inc->c->var == -1) {
+							printf("\taddiu $%d, $%d, %d\n", a, b, -inc->c->idx);
+						}else {
+							if(inc->b->var == -1) {
+								printf("\tli $v0, %d\n", inc->b->idx);
+								b = 2;
+							}
+							printf("\tsub $%d, $%d, $%d\n", a, b, c);
+						}
+					}else if(t == CALL) {
+						printf("\tjal func%d%s\n", inc->func, inc->func->name);
+						if(a != 2) {
+							printf("\tmove $%d, $v0\n", a);
+						}
+					}else if(t == ASSIGN_MOD) {
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}else if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\trem $%d, $%d, $%d\n", a, b, c);
+					}else if(t == ASSIGN_DIV) {
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}else if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tdiv $%d, $%d, $%d\n", a, b, c);
+					}else if(t == ASSIGN_MUL) {
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}else if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tmul $%d, $%d, $%d\n", a, b, c);
+					}else if(t == ASSIGN_NOT_EQUAL_TO) {
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}else if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tsne $%d, $%d, $%d\n", a, b, c);
+					}else if(t == ASSIGN_EQUAL_TO) {
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}else if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tseq $%d, $%d, $%d\n", a, b, c);
+					}else if(t == ASSIGN_GREATER_THAN_OR_EQUAL_TO) {
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}
+						if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tsge $%d, $%d, $%d\n", a, b, c);
+					}else if(t == ASSIGN_GREATER_THAN) {
+						if(inc->b->var == -1) {
+							printf("\tslti $%d, $%d, %d\n", a, c, inc->b->idx);
+						}else {
+							if(inc->c->var == -1) {
+								printf("\tli $v0, %d\n", inc->c->idx);
+								c = 2;
+							}
+							printf("\tsgt $%d, $%d, $%d\n", a, b, c);
+						}
+					}else if(t == ASSIGN_LESS_THAN_OR_EQUAL_TO) {
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}else if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tsle $%d, $%d, $%d\n", a, b, c);
+					}else if(t == ASSIGN_LESS_THAN) {
+						if(inc->c->var == -1 && inc->c->idx >= -32768 && inc->c->idx < 32768) {
+							printf("\tslti $%d, $%d, %d\n", a, b, inc->c->idx);
+						}else {
+							if(inc->c->var == -1) {
+								printf("\tli $v0, %d\n", inc->c->idx);
+								c = 2;
+							}
+							if(inc->b->var == -1) {
+								printf("\tli $v0, %d\n", inc->b->idx);
+								b = 2;
+							}
+							printf("\tslt $%d, $%d, $%d\n", a, b, c);
+						}
+					}else if(t == ASSIGN_LOGIC_OR) {
+						if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}
+						printf("\tor $%d, $%d, $%d\n", a, b, c);
+						printf("\tsne $%d, $%d, $0\n", a, a);
+					}else if(t == ASSIGN_LOGIC_AND) {
+						if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						if(inc->c->var == -1) {
+							printf("\tli $v0, %d\n", inc->c->idx);
+							c = 2;
+						}
+						if(b == 4) {
+							printf("\tsne $a0, $%d, $0\n", b);
+							printf("\tsne $v0, $%d, $0\n", c);
+						}else {
+							printf("\tsne $a0, $%d, $0\n", c);
+							printf("\tsne $v0, $%d, $0\n", b);	
+						}
+						printf("\tand $%d, $a0, $v0\n", a, b, c);
+					}else if(t == ASSIGN_DEREF || t == ASSIGN_DEREF_ADDRESS) {
+						printf("\tlw $%d, 0($%d)\n", a, b);
+					}else if(t == DEREF_ASSIGN || t == DEREF_ASSIGN_ADDRESS) {
+						printf("\tsw $%d, 0($%d)\n", b, a);
+					}else if(t == DEREF_ASSIGN_CHAR) {
+						printf("\tsb $%d, 0($%d)\n", b, a);
+					}else if(t == RETURN) {
+						if(inc->a->var == -1) {
+							printf("\tli $v0, %d\n", inc->a->idx);
+						}else {
+							if(a != 2) {
+								printf("\tmove $v0, $%d\n", a);
+							}
+						}
+						printf("\tb return%d%s\n", p->f, p->f->name);
+					}else if(t == ASSIGN_ADDRESS_OF) {
+						//do nothing
+					}else if(t == ARGU) {
+						if(inc->a->var == -1) {
+							printf("\tli $v0, %d\n", inc->a->idx);
+							a = 2;
+						}
+						printf("\taddiu $fp, $fp, -4\n");
+						printf("\tsw $%d, 0($fp)\n", a);
+					}else if(t == EXIT) {
+						printf("\tli $v0, 10\n");
+						printf("syscall\n");
+					}else if(t == VOID_RETURN) {
+						printf("b return%d%s\n", p->f, p->f->name);
+					}else if(t == ASSIGN_DEREF_CHAR) {
+						printf("\tlb $%d, 0($%d)\n", a, b);
+					}else if(t == PUTINT) {
+						printf("\tli $v0, 1\n");
+						if(inc->a->var == -1) {
+							printf("\tli $a0, %d\n", inc->a->idx);
+						}else {
+							printf("\tmove $a0, $%d\n", a);
+						}
+						printf("\tsyscall\n");
+					}else if(t == LD) {
+						printf("\tlw $%d, %d($%d)\n", a, inc->n, b);
+					}else if(t == LD_CHAR) {
+						printf("\tlb $%d, %d($%d)\n", a, inc->n, b);
+					}else if(t == ST) {
+						if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tsw $%d, %d($%d)\n", b, inc->n, a);
+					}else if(t == ST_CHAR) {
+						if(inc->b->var == -1) {
+							printf("\tli $v0, %d\n", inc->b->idx);
+							b = 2;
+						}
+						printf("\tsb $%d, %d($%d)\n", b, inc->n, a);
+					}else if(t == ASSIGN_STR) {
+						printf("\tla $%d, str%d\n", a, inc->n);
+					}else if(t == ASSIGN_DATA) {
+						printf("\tla $v0, data%d\n", inc->n);
+					}else {
+						printf("wtf\n");
+					}
+
+					if(isAssign(inc->type) && a == 2 && !(inc->type == CALL && isVoid(inc->func->rtn))) {
+						int memLoc = memoryLocate[inc->a->var];
+						if(memLoc > 0) {
+							printf("\tsw $%d, d%d\n", a, inc->a->var);
+						}else {
+							printf("\tsw $%d, %d($sp)\n", a, -memLoc * 4);
+						}
+					}
+					//printf("-\n");
+					inc = inc->next;
+				}
+				//printf("blk over\n");
+				blk = blk->next;
+			}
+			if(strcmp(p->f->name, CHIEF)) {
+				int i = 0;
+				printf("return%d%s:\n", p->f, p->f->name);
+				for(; i < p->numReg; i++) {
+					printf("\tlw $%d, %d($fp)\n", mapReg[i], i * 4);
+				}
+				printf("\tlw $ra, %d($fp)\n", p->numReg * 4);
+				printf("\tlw $sp, %d($fp)\n", p->numReg * 4 + 4);
+				printf("\taddiu $fp, $fp, %d\n", (p->cnt + p->numReg + 2) * 4);
+				printf("\tjr $ra\n");
+			}else {
+				printf("\tjal func%d%s\n", funcMain->f, funcMain->f->name);
+			
+				printf("\tjr $ra\n");
+			}
+			p = p->next;
+		}
+		printData();
+	}
+
 	//fclose(stdin);
 	return 0;
 }
-//totERROR = 1 ~ 97
+//totERROR = 1 ~ 99p->numReg = max(p->numReg, j);@
