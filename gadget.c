@@ -434,13 +434,13 @@ struct Token nextToken() {
 		}
 		while(isHex(*program)) {
 			if(isOct(*program)) {
-				x = x * base + *program - '0';
+				x = x * base - '0' + *program;
 			}else if(base == 8) {
 				//printf("!!!\n");
 				//printf("!!%c%c%c%c\n", program[0], program[1], program[2], program[3]);
 				ERROR(4);
 			}else if(isDigit(*program)) {
-				x = x * base + *program - '0';
+				x = x * base - '0' + *program;
 			}else if(base == 10) {
 				ERROR(5);
 			}else if(isHex(*program)) {
