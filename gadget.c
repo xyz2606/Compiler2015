@@ -733,6 +733,7 @@ struct Instruction * newInstruction(int type, struct Operand * a, struct Operand
 }
 
 struct FuncList {
+	int * liveness;
 	struct Function * f;
 	struct FuncList * next;
 	struct Block * blocks;
@@ -4131,7 +4132,7 @@ int main() {
 		//if(c == 64) {
 		//	break;
 		//}
-		if(c == 38 && i > 1000 && program[length - 1] == 64 && program[length - 2] == 38) {
+		if(c == 38 && i > 5 && program[length - 1] == 64 && program[length - 2] == 38) {
 			break;
 		}
 		push_back(&program, &length, &capacity, c);
@@ -4353,7 +4354,7 @@ int main() {
 		p = funcList;//给basic block连边, 做cfg.
 		while(p) {
 			//printf("block\n");
-
+			p->liveness = (int *)malloc(sizeof(int) * p->cnt);
 			struct Block * blk = p->blocks,  * prevBlock = 0;
 			//printf("block!\n");
 
@@ -4496,6 +4497,17 @@ int main() {
 										}
 									}
 									edge = edge->next;
+								}
+								if(blk->next == 0) {
+									//函数开头
+									int i = 0;
+									for(; i < p->cnt; i++) {
+										if(i == kill) {
+											p->liveness[i] = 0;
+										}else {
+											p->liveness[i] = inc->liveness[i];
+										}
+									}
 								}
 							}
 							inc = inc->next;
@@ -4991,9 +5003,10 @@ while(blk) {
 				struct Variable * var = p->f->argu;
 				while(var) {
 					int memLoc = memoryLocate[var->index];
-					if(p->regAlloc[-memLoc] != -1) {
+					int reg = p->regAlloc[-memLoc];
+					if(reg != -1 && p->liveness[-memLoc]) {
 						//printf("%s %d\n", p->f->name, var->index);
-						printf("\tlw $%d, %d($sp)\n", mapReg[p->regAlloc[-memLoc]], -memLoc * 4);
+						printf("\tlw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
 					}
 					var = var->next;
 				}
@@ -5437,6 +5450,7 @@ while(blk) {
 							printf("\tli $v0, %d\n", inc->b->idx);
 							b = 2;
 						}
+						printf("\tli $%d, 0\n", a);
 						printf("\tlb $%d, 0($%d)\n", a, b);
 					}else if(t == PUTINT) {
 						printf("\tli $v0, 1\n");
@@ -5459,6 +5473,7 @@ while(blk) {
 							printf("\tli $v0, %d\n", inc->b->idx);
 							b = 2;
 						}
+						printf("\tli $%d, 0\n", a);
 						printf("\tlb $%d, %d($%d)\n", a, inc->n, b);
 					}else if(t == ST) {
 						if(inc->a->var == -1) {
