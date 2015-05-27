@@ -5450,7 +5450,7 @@ while(blk) {
 							printf("\tli $v0, %d\n", inc->b->idx);
 							b = 2;
 						}
-						printf("\tli $%d, 0\n", a);
+						//printf("\tli $%d, 0\n", a);
 						printf("\tlb $%d, 0($%d)\n", a, b);
 					}else if(t == PUTINT) {
 						printf("\tli $v0, 1\n");
@@ -5473,7 +5473,7 @@ while(blk) {
 							printf("\tli $v0, %d\n", inc->b->idx);
 							b = 2;
 						}
-						printf("\tli $%d, 0\n", a);
+						//printf("\tli $%d, 0\n", a);
 						printf("\tlb $%d, %d($%d)\n", a, inc->n, b);
 					}else if(t == ST) {
 						if(inc->a->var == -1) {
