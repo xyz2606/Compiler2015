@@ -14,7 +14,7 @@ char * newEmptyString() {
 }
 
 char __stdio__printf__[888] = 
-"void __printf__(char * str, int * argu) { int index = 0; while(*str) { if(*str == '%') { str[0]; str++; if(str[0] == '%') { putchar('%'); }else if(str[0] == 'c') { putchar((char)argu[index++]); }else if(str[0] == 's') { char * s = (char *)argu[index++]; while(*s) { putchar(*s); s++; } }else if(str[0] == 'd') { putint(argu[index++]); }else if(str[0] == '.') { int x = str[1] - '0'; int cnt = 0, tmp, flag = 0; if(argu[index] < 0) { argu[index] = -argu[index]; flag = 1; } tmp = argu[index]; if(flag) { putchar('-'); } cnt = tmp == 0; while(tmp) {cnt++; tmp /= 10;} while(x > cnt) {putchar('0'); x--;} putint(argu[index++]); str += 2; } }else { putchar(*str); } str++; } }\n";//void __memset__(char * a, int len) {while(len) {*a = '\\0'; a++; len--; } } \nvoid __memcpy__(char * a, char * b, int len) {while(len) {*a = *b; a++; b++; len--;} }\n";
+"void __printf__(char * str, int * argu) { int index = 0; while(*str) { if(*str == '%') {str++; if(*str == 'c') { putchar(argu[index++]); }else if(str[0] == 'd') { putint(argu[index++]); } else if(str[0] == 's') { char * s = (char *)argu[index++]; while(*s) { putchar(*s); s++; } }else if(str[0] == '.') { int x = str[1] - '0'; int cnt = 0, tmp, flag = 0; if(argu[index] < 0) { argu[index] = -argu[index]; flag = 1; } tmp = argu[index]; if(flag) { putchar('-'); } cnt = tmp == 0; while(tmp) {cnt++; tmp /= 10;} while(x > cnt) {putchar('0'); x--;} putint(argu[index++]); str += 2; } }else { putchar(*str); } str++; } }\n";//void __memset__(char * a, int len) {while(len) {*a = '\\0'; a++; len--; } } \nvoid __memcpy__(char * a, char * b, int len) {while(len) {*a = *b; a++; b++; len--;} }\n";
 //
 //ERROR
 //
@@ -4487,11 +4487,21 @@ int main() {
 								if(isAssign(inc->type) && memLocA <= 0 && !(flagb && memLocB == memLocA) && !(flagc && memLocC == memLocA)) {
 									kill = -memLocA;
 								}
+								int op1 = -1, op2 = -1, op3 = -1;
+								if(!isAssign(inc->type) && flaga && memLocA <= 0) {
+									op1 = -memLocA;
+								}
+								if(flagb && memLocB <= 0) {
+									op2 = -memLocB;
+								}
+								if(flagc && memLocC <= 0) {
+									op3 = -memLocC;
+								}
 								struct Edge * edge = blk->pres;
 								while(edge) {
 									int i = 0;
 									for(; i < p->cnt; i++) {
-										if(i != kill && edge->y->incs->liveness[i] == 0 && inc->liveness[i] == 1) {
+										if(i != kill && edge->y->incs->liveness[i] == 0 && (inc->liveness[i] == 1 || i == op1 || i == op2 || i == op3)) {
 											edge->y->incs->liveness[i] = 1;
 											changed = 1;
 										}
@@ -4505,7 +4515,7 @@ int main() {
 										if(i == kill) {
 											p->liveness[i] = 0;
 										}else {
-											p->liveness[i] = inc->liveness[i];
+											p->liveness[i] = inc->liveness[i] || i == op1 || i == op2 || i == op3;
 										}
 									}
 								}
@@ -4587,6 +4597,15 @@ int main() {
 			}
 			p = p->next;
 		}
+		/*p = funcList;
+		while(p) {
+			struct Block * blk = p->blocks;
+			while(blk) {
+				struct InterCode * inc = blk->incs;
+				blk = blk->next;
+			}
+			p = p->next;
+		}*/
 		int * intervalL = (int *)malloc(sizeof(int) * totIndex), * intervalR = (int *)malloc(sizeof(int) * totIndex);
 		int * o = (int *)malloc(sizeof(int) * totIndex);
 		int * inUse = (int *)malloc(sizeof(int) * maxReg);
@@ -5522,7 +5541,9 @@ while(blk) {
 						if(memLoc > 0) {
 							printf("\tsw $%d, d%d\n", a, inc->a->var);
 						}else {
-							printf("\tsw $%d, %d($sp)\n", a, -memLoc * 4);
+							if(!dangerous[inc->a->var] && inc->liveness[-memLoc]) {
+								printf("\tsw $%d, %d($sp)\n", a, -memLoc * 4);
+							}
 						}
 					}
 					//printf("-\n");
