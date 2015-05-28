@@ -4619,6 +4619,9 @@ int main() {
 			for(i = 0; i < p->cnt; i++) {
 				intervalL[i] = infi;
 				intervalR[i] = -infi;
+				if(p->liveness[i]) {
+					intervalL[i] = intervalR[i] = 0;
+				}
 			}
 			while(blk) {
 				//printf("Block %d\n", blk->index);
