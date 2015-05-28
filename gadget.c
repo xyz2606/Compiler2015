@@ -4573,7 +4573,8 @@ int main() {
 				struct InterCode * inc = blk->incs, *inc1;//把指令顺序正过来
 				blk->incs = 0;
 				while(inc) {
-
+					//printInterCode(inc);
+					//printf("%d %d\n", inc->type, ASSIGN_ADDRESS_OF);
 					if(inc->type == ASSIGN_ADDRESS_OF) {
 						//printf("dangerous %d\n", inc->b->var);
 						dangerous[inc->b->var] = 1;
@@ -5541,7 +5542,7 @@ while(blk) {
 						if(memLoc > 0) {
 							printf("\tsw $%d, d%d\n", a, inc->a->var);
 						}else {
-							if(!dangerous[inc->a->var] && inc->liveness[-memLoc]) {
+							if(dangerous[inc->a->var] || inc->liveness[-memLoc]) {
 								printf("\tsw $%d, %d($sp)\n", a, -memLoc * 4);
 							}
 						}
