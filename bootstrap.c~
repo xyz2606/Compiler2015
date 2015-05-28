@@ -14,7 +14,7 @@ char * newEmptyString() {
 }
 
 char __stdio__printf__[888] = 
-"void __printf__(char * str, int * argu) { int index = 0; while(*str) { if(*str == '%') {str++; if(*str == 'c') { putchar(argu[index++]); }else if(str[0] == 'd') { putint(argu[index++]); } else if(str[0] == 's') { char * s = (char *)argu[index++]; while(*s) { putchar(*s); s++; } }else if(str[0] == '0' || str[0] == '.') { int x = str[1] - '0'; int cnt = 0, tmp, flag = 0; if(argu[index] < 0) { argu[index] = -argu[index]; flag = 1; } tmp = argu[index]; if(flag) { putchar('-'); } cnt = tmp == 0; while(tmp) {cnt++; tmp /= 10;} while(x > cnt) {putchar('0'); x--;} putint(argu[index++]); str += 2; } }else { putchar(*str); } str++; } }\n";//void __memset__(char * a, int len) {while(len) {*a = '\\0'; a++; len--; } } \nvoid __memcpy__(char * a, char * b, int len) {while(len) {*a = *b; a++; b++; len--;} }\n";
+"void __printf__(char * str, int * argu) { int index = 0; while(*str) { if(*str == '%') { str[0]; str++; if(str[0] == '%') { putchar('%'); }else if(str[0] == 'c') { putchar((char)argu[index++]); }else if(str[0] == 's') { char * s = (char *)argu[index++]; while(*s) { putchar(*s); s++; } }else if(str[0] == 'd') { putint(argu[index++]); }else if(str[0] == '0') { int x = str[1] - '0'; int cnt = 0, tmp, flag = 0; if(argu[index] < 0) { argu[index] = -argu[index]; flag = 1; } tmp = argu[index]; if(flag) { putchar('-'); } cnt = tmp == 0; while(tmp) {cnt++; tmp /= 10;} while(x > cnt) {putchar('0'); x--;} putint(argu[index++]); str += 2; } }else { putchar(*str); } str++; } }\n";//void __memset__(char * a, int len) {while(len) {*a = '\\0'; a++; len--; } } \nvoid __memcpy__(char * a, char * b, int len) {while(len) {*a = *b; a++; b++; len--;} }\n";
 //
 //ERROR
 //
@@ -26,24 +26,6 @@ char * bp, * program;
 int errorPainting = 1;
 
 void ERROR(int label) {
-	if(errorPainting) {
-		printf("//////////////  ////////////    ////////////       ////////     ////////////\n");
-		printf("//              //         //   //         //     //      //    //         //\n");
-		printf("//              //          //  //          //   //        //   //          //\n");
-		printf("//              //          //  //          //   //        //   //          //\n");
-		printf("//              //         //   //         //   //          //  //         //\n");
-		printf("//////////      ///////////     ///////////     //          //  ///////////\n");
-		printf("//              //     //       //     //       //          //  //     //\n");
-		printf("//              //      //      //      //      //          //  //      //\n");
-		printf("//              //       //     //       //      //        //   //       //\n");
-		printf("//              //        //    //        //     //        //   //        //\n");
-		printf("//              //         //   //         //     //      //    //         //\n");
-		printf("//////////////  //          //  //          //     ////////     //          //\n");
-		program = program - 100;
-		program[210] = '\0';
-		printf("%d %d\a\a\a%s", label, program - bp, program);
-	}
-	exit(1);
 }
 
 void printERROR(char * s) {
@@ -733,7 +715,6 @@ struct Instruction * newInstruction(int type, struct Operand * a, struct Operand
 }
 
 struct FuncList {
-	int * liveness;
 	struct Function * f;
 	struct FuncList * next;
 	struct Block * blocks;
@@ -871,123 +852,6 @@ void printOperand(struct Operand * ope) {
 }
 
 void printIntermediateCode(struct Instruction * inst) {
-	if(inst->type == GET_ARGU) {
-		printf("get_argument "), printOperand(inst->a), printf("\n");
-	}else if(inst->type == DECL_POINTER) {
-		printf("declarate pointer %s := ", inst->a->var->name), printOperand(inst->a), printf("\n");
-	}else if(inst->type == DECL_CHAR) {
-		printf("declarate char %s := ", inst->a->var->name), printOperand(inst->a), printf("\n");
-	}else if(inst->type == DECL_INT) {
-		printf("declarate int %s := ", inst->a->var->name), printOperand(inst->a), printf("\n");
-	}else if(inst->type == MALLOC) {
-		printOperand(inst->a), printf(" = malloc "), printOperand(inst->b), printf("\n");
-	}else if(inst->type == GETCHAR) {
-		printOperand(inst->a), printf(" = getchar\n");
-	}else if(inst->type == PUTCHAR) {
-		printf("putchar "), printOperand(inst->a), printf("\n");
-	}else if(inst->type == PUTINT) {
-		printf("putint "), printOperand(inst->a), printf("\n");
-	}else if(inst->type == NOP) {
-		printf("nop\n");
-	}else if(inst->type == ASSIGN_ADD) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" + "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == GOTO) {
-		printf("goto L%d\n", inst->n);
-	}else if(inst->type == LABEL) {
-		printf("L%d: ", inst->n);
-	}else if(inst->type == IF_GOTO) {
-		printf("if "), printOperand(inst->a), printf(" goto %d\n", inst->n);
-	}else if(inst->type == IF_FALSE_GOTO) {
-		printf("if false "), printOperand(inst->a), printf(" goto %d\n", inst->n);
-	}else if(inst->type == ASSIGN_LOGICAL_NOT) {
-		printOperand(inst->a), printf(" = !"), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_NOT) {
-		printOperand(inst->a), printf(" = ~"), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_NEGATE) {
-		printOperand(inst->a), printf(" = -"), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_CHAR) {
-		printf("char assign "), printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_ADDRESS) {
-		printf("address assign "), printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_INCLUSIVE_OR) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" | "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_EXCLUSIVE_OR) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" ^ "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_AND) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" & "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_SHR) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" >> "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_SHL) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" << "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_SUB) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" - "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_MOD) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" %% "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_DIV) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" / "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_MUL) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" * "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_NOT_EQUAL_TO) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" != "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_EQUAL_TO) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" == "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_GREATER_THAN_OR_EQUAL_TO) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" >= "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_GREATER_THAN) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" > "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_LESS_THAN) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" < "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_LOGIC_OR) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" || "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_LOGIC_AND) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" && "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_LESS_THAN_OR_EQUAL_TO) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf(" <= "), printOperand(inst->c), printf("\n");
-	}else if(inst->type == ASSIGN_DEREF) {
-		printOperand(inst->a), printf(" = *(4)"),  printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_DEREF_ADDRESS) {
-		printOperand(inst->a), printf(" = *(%d)", POINTER_SIZE),  printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_DEREF_CHAR) {
-		printOperand(inst->a), printf(" = *(1)"),  printOperand(inst->b), printf("\n");
-	}else if(inst->type == INT_TO_CHAR) {
-		printOperand(inst->a), printf(" = (char)"),  printOperand(inst->b), printf("\n");
-	}else if(inst->type == CHAR_TO_INT) {
-		printOperand(inst->a), printf(" = (int)"),  printOperand(inst->b), printf("\n");
-	}else if(inst->type == DEREF_ASSIGN_ADDRESS) {
-		printf("address assign *(%d)", POINTER_SIZE), printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("\n");
-	}else if(inst->type == DEREF_ASSIGN) {
-		printf("*(4)"), printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("\n");
-	}else if(inst->type == DEREF_ASSIGN_CHAR) {
-		printf("*(1)"), printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("\n");
-	}else if(inst->type == RETURN) {
-		printf("return "), printOperand(inst->a), printf("\n");
-	}else if(inst->type == VOID_RETURN) {
-		printf("return (void)\n");
-	}else if(inst->type == EXIT) {
-		printf("exit "), printOperand(inst->a), printf("\n");
-	}else if(inst->type == ASSIGN_ADDRESS_OF) {
-		printOperand(inst->a), printf(" = &"), printOperand(inst->b), printf("\n");
-	}else if(inst->type == CALL) {
-		printOperand(inst->a), printf(" = call %s %d\n", inst->f->name, inst->n);
-	}else if(inst->type == ARGU) {
-		printf("argu "), printOperand(inst->a), printf("\n");
-	}else if(inst->type == LD) {
-		printOperand(inst->a), printf(" = "), printOperand(inst->b), printf("[%d]\n", inst->b->offset);
-	}else if(inst->type == LD_CHAR) {
-		printOperand(inst->a), printf(" = (char *)"), printOperand(inst->b), printf("[%d]\n", inst->b->offset);
-	}else if(inst->type == ST) {
-		printOperand(inst->a), printf("[%d] = ", inst->a->offset), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ST_CHAR) {
-		printf("(char *)"), printOperand(inst->a), printf("[%d] = ", inst->a->offset), printOperand(inst->b), printf("\n");
-	}else if(inst->type == ASSIGN_STR) {
-		printf("la "), printOperand(inst->a), printf(".data str%d\n", inst->n);
-	}else if(inst->type == ASSIGN_DATA) {
-		printf("la "), printOperand(inst->a), printf(".data data%d\n", inst->n);
-	}else {
-		printf("\n\n???instruction???%d\n\n", inst->type);
-	}
 }
 //print\C3\FC\C1\EE\D6\D0, ֻ\D3и\B3ֵ\CCṩȫ\B2\BF\B2\D9\D7\F7\CA\FD, \C6\E4\CB\FB\D4\CB\CB㶼ʡȥ\D7\F3\B1߲\D9\D7\F7\CA\FD\D7\F7Ϊ\C1\D9ʱ\B2\D9\D7\F7\CA\FD\D0½\A8\B2\A2\B7\B5\BB\D8.
 
@@ -3414,32 +3278,9 @@ struct Trie {
 } * root;
 
 struct Trie * newTrie() {
-	struct Trie * res = (struct Trie *)malloc(sizeof(struct Trie));
-	res->s[0] = 0;
-	res->s[1] = 0;
-	res->value = 0;
-	return res;
 }
 
 struct Trie * accessOperand(int x) {
-	struct Trie * p = root;
-	int d = x < 0;
-	if(d) {
-		x = -x;
-	}
-	if(p->s[d] == 0) {
-		p->s[d] = newTrie();
-	}
-	p = p->s[d];
-	while(x) {
-		d = x & 1;
-		if(p->s[d] == 0) {
-			p->s[d] = newTrie();
-		}
-		p = p->s[d];
-		x /= 2;
-	}
-	return p;
 }
 
 struct Instruction * inst;
@@ -3447,226 +3288,6 @@ struct Instruction * inst;
 int halt, result;
 
 int run(struct Function * f) {
-	struct Instruction * inst = f->insts;
-	struct List * tmp = f->occupy;
-	struct List * bak = 0;
-	if(f != chief) {
-		while(tmp) {
-			struct List * new = newList();
-			new->value = accessOperand(tmp->value)->value;
-			new->next = bak;
-			bak = new;
-			tmp = tmp->next;
-		}
-	}
-	int res;
-	//printf("%s\n", f->name);
-	while(inst) {
-		int noJump = 1;
-		struct Trie * a, * b, * c;
-		//if(strcmp(f->name, "isLetter") && strcmp(f->name, "isDigit") && strcmp(f->name, "nextToken") && strcmp(f->name, "chief") ) {
-		//if(strcmp(f->name, "__printf__")) {		
-		//	printIntermediateCode(inst);
-		//}
-		//}
-		if(inst->a) {
-			if(inst->a->constant) {
-				a = accessOperand(-3);
-				a->value = inst->a->value;
-			}else {
-				a = accessOperand(inst->a->var->index);
-			}
-		}
-		if(inst->b) {
-			if(inst->b->constant) {
-				b = accessOperand(-1);
-				b->value = inst->b->value;
-			}else {
-				b = accessOperand(inst->b->var->index);
-			}
-		}
-		if(inst->c) {
-			if(inst->c->constant) {
-				c = accessOperand(-2);
-				c->value = inst->c->value;
-			}else {
-				c = accessOperand(inst->c->var->index);
-			}
-
-		}
-		int t = inst->type;
-		if(t == GET_ARGU) {
-			if(arguStack) {
-				a->value = arguStack->value;
-				arguStack = arguStack->prev;
-			}
-		}else if(t == DECL_POINTER) {
-			//DO NOTHING
-		}else if(t == DECL_CHAR) {
-			//DO NOTHING
-		}else if(t == DECL_INT) {
-			//DO NOTHING
-		}else if(t == MALLOC) {
-			a->value = (int)malloc(b->value);
-			//printf("malloc %d %d\n", a->value, b->value);
-		}else if(t == GETCHAR) {
-			a->value = getchar();
-			//			printf("%d\n", a->value);
-		}else if(t == PUTCHAR) {
-			putchar(a->value);
-		}else if(t == NOP) {
-			//DO NOTHING
-		}else if(t == ASSIGN_ADD) {
-			a->value = b->value + c->value;
-			//printf("PLUS %d %d %d\n", a->value, b->value, c->value);
-		}else if(t == GOTO) {
-			inst = jumpTo[inst->n];
-			noJump = 0;
-		}else if(t == LABEL) {
-			//DO NOTHING
-		}else if(t == IF_GOTO) {
-			if(a->value) {
-				inst = jumpTo[inst->n];
-				noJump = 0;
-			}
-		}else if(t == IF_FALSE_GOTO) {
-			if(!a->value) {
-				inst = jumpTo[inst->n];
-				noJump = 0;
-			}
-		}else if(t == ASSIGN_LOGICAL_NOT) {
-			a->value = !b->value;
-		}else if(t == ASSIGN_NOT) {
-			a->value = ~b->value;
-		}else if(t == ASSIGN_NEGATE) {
-			a->value = -b->value;
-		}else if(t == ASSIGN || t == ASSIGN_CHAR || t == ASSIGN_ADDRESS || t == INT_TO_CHAR || t == CHAR_TO_INT) {
-			a->value = b->value;
-			//printf("ADDRESS_ASSIGN %d %d\n", a->value, b->value);
-		}else if(t == ASSIGN_INCLUSIVE_OR) {
-			a->value = b->value | c->value;
-		}else if(t == ASSIGN_EXCLUSIVE_OR) {
-			a->value = b->value ^ c->value;
-		}else if(t == ASSIGN_AND) {
-			a->value = b->value & c->value;
-		}else if(t == ASSIGN_SHR) {
-			a->value = b->value >> c->value;
-		}else if(t == ASSIGN_SHL) {
-			a->value = b->value << c->value;
-		}else if(t == ASSIGN_SUB) {
-			a->value = b->value - c->value;
-		}else if(t == CALL) {
-			a->value = run(inst->f);
-			if(halt) {
-				return 0;
-			}
-		}else if(t == ASSIGN_MOD) {
-			if(c->value == 0) {
-				printf("MODULO BY ZERO\n");
-				ERROR(88);
-			}
-			a->value = b->value % c->value;
-		}else if(t == ASSIGN_DIV) {
-			if(c->value == 0) {
-				printf("DIVIDE BY ZERO\n");
-				ERROR(89);
-			}
-			a->value = b->value / c->value;
-		}else if(t == ASSIGN_MUL) {
-			a->value = b->value * c->value;
-		}else if(t == ASSIGN_NOT_EQUAL_TO) {
-			a->value = b->value != c->value;
-		}else if(t == ASSIGN_EQUAL_TO) {
-			a->value = b->value == c->value;
-		}else if(t == ASSIGN_GREATER_THAN_OR_EQUAL_TO) {
-			a->value = b->value >= c->value;
-		}else if(t == ASSIGN_LESS_THAN_OR_EQUAL_TO) {
-			a->value = b->value <= c->value;
-		}else if(t == ASSIGN_GREATER_THAN) {
-			//printf("%d %d\n", b->value, c->value);
-			a->value = b->value > c->value;
-		}else if(t == ASSIGN_LESS_THAN) {
-			a->value = b->value < c->value;
-		}else if(t == ASSIGN_LOGIC_OR) {
-			a->value = b->value || c->value;
-		}else if(t == ASSIGN_LOGIC_AND) {
-			a->value = b->value && c->value;
-		}else if(t == ASSIGN_DEREF || t == ASSIGN_DEREF_ADDRESS) {
-			a->value = *(int *)b->value;
-		}else if(t == ASSIGN_DEREF_CHAR) {
-			a->value = *(char *)b->value;
-		}else if(t == LD) {
-//			printf("LD1");
-			a->value = *(int *)(b->value + inst->b->offset);	
-//			printf("LD2");
-		}else if(t == LD_CHAR) {
-//			printf("LD1");
-			a->value = *(char *)(b->value + inst->b->offset);	
-//			printf("LD2");
-		}else if(t == DEREF_ASSIGN_ADDRESS || t == DEREF_ASSIGN) {
-			*(int *)a->value = b->value;
-		}else if(t == DEREF_ASSIGN_CHAR) {
-			*(char *)a->value = b->value;
-		}else if(t == ST) {
-			//printf("st1");
-			//printf("ST1%d", inst->a->offset);
-			*(int *)(a->value + inst->a->offset) = b->value;
-			//printf("ST2");
-		}else if(t == ST_CHAR) {
-			//printf("st1");
-			//printf("ST1%d", inst->a->offset);
-			*(char *)(a->value + inst->a->offset) = b->value;
-			//printf("ST2");
-		}else if(t == RETURN) {
-			res = a->value;
-			break;
-		}else if(t == ASSIGN_ADDRESS_OF) {
-			a->value = (int)&b->value;
-		}else if(t == ARGU) {
-			if(arguStack) {
-				arguStack->next = newList();
-				arguStack->next->value = a->value;
-				arguStack->next->prev = arguStack;
-				arguStack = arguStack->next;
-			}else {
-				arguStack = newList();
-				arguStack->value = a->value;
-			}
-		}else if(t == EXIT) {
-			halt = 1;
-			result = a->value;
-			break;
-		}else if(t == VOID_RETURN) {
-			break;
-		}else if(t == PUTINT) {
-			printf("%d", a->value);
-		}else {
-			printf("ffffffffffuuuuuuuuuuuuuucccccccccccccckkkkkkkkkkkkkk\n");
-		}
-		if(halt) {
-			return 0;
-		}
-		if(noJump) {
-			inst = inst->next;
-		}
-	}
-	if(f != chief) {
-		struct List * tmp1 = 0, * tmp2;
-		while(bak) {
-			tmp2 = bak->next;
-			bak->next = tmp1;
-			tmp1 = bak;
-			bak = tmp2;
-		}
-		bak = tmp1;
-		tmp = f->occupy;
-		while(tmp) {
-			accessOperand(tmp->value)->value = bak->value;
-			bak = bak->next;
-			tmp = tmp->next;
-		}
-	}
-	return res;
 }
 
 struct InterCodeOperand {
@@ -3749,22 +3370,6 @@ void pushEdge(struct Block * blk, int d, struct Block * y) {
 }
 
 void dfs(struct Block * blk, int rtn) {
-    if(blk->visit == clck) {
-        return;
-    }
-    blk->visit = clck;
-    struct List * lst = newList();
-    lst->next = blk->sources;
-    blk->sources = lst;
-    lst->value = rtn;
-    if(blk->rtn == -1) {
-        int i = 0;
-        for(i = 0; i < 2; i++) {
-            if(blk->edges[i]) {
-                dfs(blk->edges[i], rtn);
-            }
-        }
-    }
 }
 
 struct InterCode * convertToInterCode(struct Instruction * inst) {
@@ -3802,169 +3407,9 @@ struct InterCode * convertToInterCode(struct Instruction * inst) {
 }
 
 void printInterCodeOperand(struct InterCodeOperand * ope) {
-	if(ope->var == -1) {
-		printf("(const)%d", ope->idx);
-	}else {
-		printf("MEM[%d][%d]", ope->var, ope->idx);
-	}
 }
 struct Block ** jumpToBlock;
 void printInterCode(struct InterCode * inc) {
-	char * s1 = 0, * s2 = 0, * s3 = 0;
-	if(inc->type == GET_ARGU) {
-		s1 = "get_argument ";
-	}else if(inc->type == DECL_POINTER) {
-		s1 = "declarate pointer ";
-	}else if(inc->type == DECL_CHAR) {
-		s1 = "declarate char ";
-	}else if(inc->type == DECL_INT) {
-		s1 = "declarate int ";
-	}else if(inc->type == MALLOC) {
-		s2 = " = malloc ";
-	}else if(inc->type == GETCHAR) {
-		s2 = " = getchar";
-	}else if(inc->type == PUTCHAR) {
-		s1 = "putchar ";
-	}else if(inc->type == ASSIGN_ADD) {
-		s2 = " = "; s3 = " + ";
-	}else if(inc->type == GOTO) {
-		printf("goto %d\n", jumpToBlock[inc->n]->index);
-		return;
-	}else if(inc->type == LABEL) {
-		printf("LABEL?? WTF??\n");
-		return;
-	}else if(inc->type == IF_GOTO) {
-		printf("if ");
-		printInterCodeOperand(inc->a);
-		printf(" goto %d\n", jumpToBlock[inc->n]->index);
-		return;
-	}else if(inc->type == IF_FALSE_GOTO) {
-		printf("if_false ");
-		printInterCodeOperand(inc->a);
-		printf(" goto %d\n", jumpToBlock[inc->n]->index);
-		return;
-	}else if(inc->type == ASSIGN_LOGICAL_NOT) {
-		s2 = " = !";
-	}else if(inc->type == ASSIGN_NOT) {
-		s2 = " = ~";
-	}else if(inc->type == ASSIGN_NEGATE) {
-		s2 = " = -";
-	}else if(inc->type == ASSIGN) {
-		s2 = " = ";
-	}else if(inc->type == ASSIGN_CHAR) {
-		s2 = " =(char) ";
-	}else if(inc->type == ASSIGN_ADDRESS) {
-		s2 = " =(address) ";
-	}else if(inc->type == ASSIGN_INCLUSIVE_OR) {
-		s2 = " = "; s3 = " | ";
-	}else if(inc->type == ASSIGN_EXCLUSIVE_OR) {
-		s2 = " = "; s3 = " ^ ";
-	}else if(inc->type == ASSIGN_AND) {
-		s2 = " = "; s3 = " & ";
-	}else if(inc->type == ASSIGN_SHR) {
-		s2 = " = "; s3 = " >> ";
-	}else if(inc->type == ASSIGN_SHL) {
-		s2 = " = "; s3 = " << ";
-	}else if(inc->type == ASSIGN_SUB) {
-		s2 = " = "; s3 = " - ";
-	}else if(inc->type == CALL) {
-		printInterCodeOperand(inc->a); printf(" = call_function[%s][%d]\n", inc->func->name, inc->n);
-		return;
-	}else if(inc->type == ASSIGN_MOD) {
-		s2 = " = "; s3 = " % ";
-	}else if(inc->type == ASSIGN_DIV) {
-		s2 = " = "; s3 = " / ";
-	}else if(inc->type == ASSIGN_MUL) {
-		s2 = " = "; s3 = " * ";
-	}else if(inc->type == ASSIGN_NOT_EQUAL_TO) {
-		s2 = " = "; s3 = " != ";
-	}else if(inc->type == ASSIGN_EQUAL_TO) {
-		s2 = " = "; s3 = " == ";
-	}else if(inc->type == ASSIGN_GREATER_THAN_OR_EQUAL_TO) {
-		s2 = " = "; s3 = " >= ";
-	}else if(inc->type == ASSIGN_LESS_THAN_OR_EQUAL_TO) {
-		s2 = " = "; s3 = " <= ";
-	}else if(inc->type == ASSIGN_GREATER_THAN) {
-		s2 = " = "; s3 = " > ";
-	}else if(inc->type == ASSIGN_LESS_THAN) {
-		s2 = " = "; s3 = " < ";
-	}else if(inc->type == ASSIGN_LOGIC_OR) {
-		s2 = " = "; s3 = " || ";
-	}else if(inc->type == ASSIGN_LOGIC_AND) {
-		s2 = " = "; s3 = " && ";
-	}else if(inc->type == ASSIGN_DEREF) {
-		s2 = " = *";
-	}else if(inc->type == INT_TO_CHAR) {
-		s2 = " = (int)";
-	}else if(inc->type == CHAR_TO_INT) {
-		s2 = " = (char)";
-	}else if(inc->type == DEREF_ASSIGN_ADDRESS) {
-		s1 = "*(address)"; s2 = " = ";
-	}else if(inc->type == DEREF_ASSIGN) {
-		s1 = "*"; s2 = " = ";
-	}else if(inc->type == DEREF_ASSIGN_CHAR) {
-		s1 = "*(char)"; s2 = " = ";
-	}else if(inc->type == LD) {
-		printInterCodeOperand(inc->a); printf(" = (int *)"); printInterCodeOperand(inc->b); printf("[%d]\n", inc->n);
-		return;
-	}else if(inc->type == LD_CHAR) {
-		printInterCodeOperand(inc->a); printf(" = (char *)"); printInterCodeOperand(inc->b); printf("[%d]\n", inc->n);
-		return;
-	}else if(inc->type == ST) {
-		printf("(int *)"); printInterCodeOperand(inc->a); printf("[%d] = ", inc->n); printInterCodeOperand(inc->b); printf("\n");
-		return;
-	}else if(inc->type == ST_CHAR) {
-		printf("(char *)"); printInterCodeOperand(inc->a); printf("[%d] = ", inc->n); printInterCodeOperand(inc->b); printf("\n");
-		return;
-	}else if(inc->type == RETURN) {
-		s1 = "return ";
-	}else if(inc->type == ASSIGN_ADDRESS_OF) {
-		s2 = " = &";
-	}else if(inc->type == ARGU) {
-		s1 = "argument ";
-	}else if(inc->type == EXIT) {
-		s1 = "exit ";
-	}else if(inc->type == VOID_RETURN) {
-		s1 = "return";
-	}else if(inc->type == ASSIGN_DEREF_ADDRESS) {
-		s2 = " = *(address)";
-	}else if(inc->type == ASSIGN_DEREF_CHAR) {
-		s2 = " = *(char)";
-	}else if(inc->type == PUTINT) {
-		s1 = "putint ";
-	}else if(inc->type == PHI) {
-		s2 = " = phi "; s3 = " ";
-	}else if(inc->type == ASSIGN_STR) {
-		printf("la "), printInterCodeOperand(inc->a), printf(" .data str%d\n", inc->n);
-		return;
-	}else if(inc->type == ASSIGN_DATA) {
-		printf("la "), printInterCodeOperand(inc->a), printf(" .data data%d\n", inc->n);
-		return;
-	}else if(inc->type == NOP) {
-		printf("nop\n");
-		return;
-	}else {
-		printf("??INTERCODE??\n");
-	}
-	if(s1) {
-		printf("%s", s1);
-	}
-	if(inc->a) {
-		printInterCodeOperand(inc->a);
-	}
-	if(s2) {
-		printf("%s", s2);
-	}
-	if(inc->b) {
-		printInterCodeOperand(inc->b);
-	}
-	if(s3) {
-		printf("%s", s3);
-	}
-	if(inc->c) {
-		printInterCodeOperand(inc->c);
-	}
-	printf("\n");
 }
 int isJump(int x) {
 	return x == IF_GOTO || x == IF_FALSE_GOTO || x == GOTO;
@@ -4063,24 +3508,6 @@ int load(struct FuncList * p, int idx, int * liveness) {
 			printf("54749110\n");
 		}
 	}else {
-		/*
-		if(regAssign[reg] != -1 && regAssign[reg] != idx) {
-			int memLoc = memoryLocate[regAssign[reg]];
-			if(memLoc > 0) {
-				printf("\tsw $%d, d%d\n", mapReg[reg], regAssign[reg]);
-			}else {
-				if(liveness[-memLoc]) {
-					printf("\tsw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
-				}
-			}
-			regAssign[reg] = -1;
-		}
-		if(memLoc > 0) { 
-			printf("\tlw $%d, d%d\n", mapReg[reg], idx);
-		}else {
-			printf("\tlw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
-		}
-		regAssign[reg] = idx;*/
 		return mapReg[reg];
 	}
 }
@@ -4096,22 +3523,12 @@ int locateTarget(struct FuncList * p, int idx, int * liveness) {
 	if(reg == -1) {
 		return 2;//v0
 	}else {
-		/*if(regAssign[reg] != -1 && regAssign[reg] != idx) {
-			int memLoc = memoryLocate[regAssign[reg]];
-			if(memLoc > 0) {
-				printf("\tsw $%d, d%d\n", mapReg[reg], idx);
-			}else {
-				printf("\tsw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
-			}
-			regAssign[reg] = -1;
-		}
-		regAssign[reg] = idx;*/
 		return mapReg[reg];
 	}
 }
 
-int stopAtLexer = 0, stopAt3AddrCode = 0, interpreter = 0, outputInterCode = 1;
-
+int stopAtLexer = 0, stopAt3AddrCode = 0, interpreter = 0, outputInterCode = 0;
+int DEBUG = 0;
 int main() {
 	//freopen("basicopt1-hetianxing.c", "r", stdin);
 	examine = 1;
@@ -4132,10 +3549,14 @@ int main() {
 		//if(c == 64) {
 		//	break;
 		//}
+		//printf("%c %c %c\n", c, program[length - 1], program[length - 2]);
 		if(c == 38 && i > 5 && program[length - 1] == 64 && program[length - 2] == 38) {
 			break;
 		}
 		push_back(&program, &length, &capacity, c);
+	}
+	if(DEBUG) {
+		printf("--\n");
 	}
 	for(i = 0; i < 5; i++) {
 		push_back(&program, &length, &capacity, 0);
@@ -4354,7 +3775,7 @@ int main() {
 		p = funcList;//给basic block连边, 做cfg.
 		while(p) {
 			//printf("block\n");
-			p->liveness = (int *)malloc(sizeof(int) * p->cnt);
+
 			struct Block * blk = p->blocks,  * prevBlock = 0;
 			//printf("block!\n");
 
@@ -4389,13 +3810,15 @@ int main() {
 				deadCode = 0;
 				int changed = 1;
 				blk = p->blocks;
-				//printf("123\n");
+				if(DEBUG) {
+					printf("123 %s\n", p->f->name);
+				}
 				while(blk) {
 					struct InterCode * inc = blk->incs;
 					while(inc) {
 						int i;
 						for(i = 0; i < p->cnt; i++) {
-							inc->liveness[i] = 0;
+							inc->liveness[i] = 1;
 						}
 				
 						inc = inc->next;
@@ -4403,7 +3826,7 @@ int main() {
 					blk = blk->next;
 				}
 				//printf("123\n");
-				
+				changed = 0;
 				while(changed) {//做局部变量活性分析.
 					//printf("changed %s\n", p->f->name);
 					changed = 0;
@@ -4487,37 +3910,16 @@ int main() {
 								if(isAssign(inc->type) && memLocA <= 0 && !(flagb && memLocB == memLocA) && !(flagc && memLocC == memLocA)) {
 									kill = -memLocA;
 								}
-								int op1 = -1, op2 = -1, op3 = -1;
-								if(!isAssign(inc->type) && flaga && memLocA <= 0) {
-									op1 = -memLocA;
-								}
-								if(flagb && memLocB <= 0) {
-									op2 = -memLocB;
-								}
-								if(flagc && memLocC <= 0) {
-									op3 = -memLocC;
-								}
 								struct Edge * edge = blk->pres;
 								while(edge) {
 									int i = 0;
 									for(; i < p->cnt; i++) {
-										if(i != kill && edge->y->incs->liveness[i] == 0 && (inc->liveness[i] == 1 || i == op1 || i == op2 || i == op3)) {
+										if(i != kill && edge->y->incs->liveness[i] == 0 && inc->liveness[i] == 1) {
 											edge->y->incs->liveness[i] = 1;
 											changed = 1;
 										}
 									}
 									edge = edge->next;
-								}
-								if(blk->next == 0) {
-									//函数开头
-									int i = 0;
-									for(; i < p->cnt; i++) {
-										if(i == kill) {
-											p->liveness[i] = 0;
-										}else {
-											p->liveness[i] = inc->liveness[i] || i == op1 || i == op2 || i == op3;
-										}
-									}
 								}
 							}
 							inc = inc->next;
@@ -4597,15 +3999,6 @@ int main() {
 			}
 			p = p->next;
 		}
-		/*p = funcList;
-		while(p) {
-			struct Block * blk = p->blocks;
-			while(blk) {
-				struct InterCode * inc = blk->incs;
-				blk = blk->next;
-			}
-			p = p->next;
-		}*/
 		int * intervalL = (int *)malloc(sizeof(int) * totIndex), * intervalR = (int *)malloc(sizeof(int) * totIndex);
 		int * o = (int *)malloc(sizeof(int) * totIndex);
 		int * inUse = (int *)malloc(sizeof(int) * maxReg);
@@ -4615,6 +4008,16 @@ int main() {
 			struct Block * blk = p->blocks;
 			p->numReg = -1;//用到的寄存器数量
 			int stamp = 0;//时间.
+			for(i = 0; i < maxReg; i++) {
+				inUse[i] = -1;
+			}
+			p->regAlloc = (int *)malloc(sizeof(int) * p->cnt);
+			for(i = 0; i < p->cnt; i++) {
+				p->regAlloc[i] = -1;
+			}
+			p->numReg = 0;
+			p = p->next;
+			continue;
 			for(i = 0; i < p->cnt; i++) {
 				intervalL[i] = infi;
 				intervalR[i] = -infi;
@@ -4663,13 +4066,6 @@ int main() {
 						o[j] = tmp;
 					}
 				}
-			}
-			for(i = 0; i < maxReg; i++) {
-				inUse[i] = -1;
-			}
-			p->regAlloc = (int *)malloc(sizeof(int) * p->cnt);
-			for(i = 0; i < p->cnt; i++) {
-				p->regAlloc[i] = -1;
 			}
 			for(i = 0; i < p->cnt; i++) {
 				if(intervalL[o[i]] == infi) {
@@ -4729,6 +4125,7 @@ int main() {
 		int * valid;
 		valid = (int *)malloc(sizeof(int) * localRegLim);
 		while(p) {
+			break;
 			struct Block * blk = p->blocks;
 			while(blk) {
 				struct InterCode * inc = blk->incs;
@@ -4819,183 +4216,6 @@ int main() {
 			}
 			p = p->next;
 		}
-		for(i = 0; i < totIndex; i++) {//枚举变量.
-			int cnt = 0;
-			p = funcList;
-			struct FuncList * cur;
-			while(p) {
-				int occur = 0;
-				struct Block * blk = p->blocks;
-				while(blk) {
-					//printf("block[%d]", blk->index);
-					struct InterCode * inc = blk->incs;
-					while(inc) {
-						//printf("Inc[%d] %d", inc->type, isAssign(inc->type));
-						if(inc->type == ASSIGN_ADDRESS_OF && inc->a->var == i) {
-							cnt += 2;
-							break;
-							//printf("aao");
-						}else if(isAssign(inc->type) && inc->a->var == i) {
-							occur = 1;
-							cur = p;
-							//printf("ass");
-						}else {
-							//printf("nor");
-						}
-						inc = inc->next;
-					}
-					//printf("[/block]");
-					blk = blk->next;
-				}
-				cnt += occur;
-				if(cnt >= 2) {
-					break;
-				}
-				p = p->next;
-			}
-			//printf("%d %d\n", i, cnt);
-			if(cnt == 1) {//仅出现在一个函数中的变量, 而且没有被取地址!
-				struct Block * blk;
-				struct InterCode * inc;
-				blk = cur->blocks;
-				int stamp = 0;//给所有的赋值语句打戳.
-				while(blk) {
-					inc = blk->incs;
-					blk->rtn = -1;
-					blk->visit = 0;
-					while(inc) {
-						if(isAssign(inc->type) && inc->a->var == i) {
-							inc->a->idx = stamp++;
-							blk->rtn = stamp - 1;//出block时的副本的戳.
-						}
-						inc = inc->next;
-					}
-					blk->sources = 0;
-					blk = blk->next;
-				}
-				blk = cur->blocks;
-				while(blk) {
-					inc = blk->incs;
-					int used = 0;
-					while(inc) {
-						if(inc->a && !isAssign(inc->type) && inc->a->var == i) {
-							used = 1;
-							break;
-						}
-						if(inc->b && inc->b->var == i) {
-							used = 1;
-							break;
-						}
-						if(inc->c && inc->c->var == i) {
-							used = 1;
-							break;
-						}
-						inc = inc->next;
-					}//判断是否用到过.
-					//printf("blk = %d, var = %d, rtn = %d\n", blk->index, i, blk->rtn);
-					if(blk->rtn != -1) {
-						int j;
-						for(j = 0; j < 2; j++) {
-							if(blk->edges[j]) {
-								clck++;
-								//printf("clck = %d\n", clck);
-								dfs(blk->edges[j], blk->rtn);//副本传递
-							}
-						}
-					}
-					blk->used = used;
-					blk = blk->next;
-				}
-				//printf("!!\n");
-				blk = cur->blocks;
-				while(blk) {
-					if(blk->used) {
-						int source = -1;
-						struct List * lst = blk->sources;
-						if(lst) {
-							//printf("1\n");
-							if(lst->next) {
-								//printf("2\n");
-								source = lst->value;
-								lst = lst->next;
-								while(lst) {
-									//printf("3\n");
-									if(source != lst->value) {
-										struct InterCode * inc = newInterCode();
-										inc->type = PHI;
-										inc->a = newInterCodeOperand();
-										inc->b = newInterCodeOperand();
-										inc->c = newInterCodeOperand();
-
-										inc->a->var = inc->b->var = inc->c->var = i;
-										inc->a->idx = stamp++;
-										inc->b->idx = source;
-										inc->c->idx = lst->value;
-										inc->next = blk->phis;
-										blk->phis = inc;
-										source = stamp - 1;
-									}
-									lst = lst->next;
-								}
-							}else {
-								source = lst->value;
-							}
-						}
-						inc = blk->incs;
-						while(inc) {//引用确定
-							if(isAssign(inc->type) && inc->a->var == i) {
-								source = inc->a->idx;
-							}
-							if(!isAssign(inc->type) && inc->a && inc->a->var == i) {
-								inc->a->idx = source;
-							}
-							if(inc->b && inc->b->var == i) {
-								inc->b->idx = source;
-							}
-							if(inc->c && inc->c->var == i) {
-								inc->c->idx = source;
-							}
-							inc = inc->next;
-						}
-					}
-					blk = blk->next;
-				}
-
-
-			}
-		}	
-		if(outputInterCode == 1) {
-			p = funcList;
-			while(p) {
-				printf("[SSA InterCode Function %s:]\n", p->f->name);
-				struct Block * blk = p->blocks;
-				while(blk) {
-					printf("Block %d\n", blk->index);
-					struct InterCode * inc = blk->phis, * inc1;
-					blk->phis = 0;
-					while(inc) {
-						inc1 = inc->next;
-						inc->next = blk->phis;
-						blk->phis = inc;
-						inc = inc1;
-					}
-					inc = blk->phis;
-					while(inc) {
-						printInterCode(inc);
-						inc = inc->next;
-					}
-					inc = blk->incs;
-					while(inc) {
-						printInterCode(inc);
-						inc = inc->next;
-					}
-					blk = blk->next;
-				}
-				p = p->next;
-			}
-			printData();
-			return 0;
-		}
 		mapReg = (int *)malloc(sizeof(int) * maxReg);
 		//mapReg[0] = 3, 5, 6, 
 		mapReg[0] = 3;
@@ -5010,7 +4230,7 @@ int main() {
 				printf("func%d%s:\n", p->f, p->f->name);
 				////////////////$sp, $fp
 				printf("\taddiu $fp, $fp, %d\n", -(p->cnt - p->cntArgu + p->numReg + 2) * 4);//fp = gp
-
+				
 				int i = 0;
 				for(; i < p->numReg; i++) {
 					printf("\tsw $%d, %d($fp)\n", mapReg[i], i * 4);//顶部备份寄存器!
@@ -5021,14 +4241,13 @@ int main() {
 				struct Variable * var = p->f->argu;
 				while(var) {
 					int memLoc = memoryLocate[var->index];
-					int reg = p->regAlloc[-memLoc];
-					if(reg != -1 && p->liveness[-memLoc]) {
+					if(p->regAlloc[-memLoc] != -1) {
 						//printf("%s %d\n", p->f->name, var->index);
-						printf("\tlw $%d, %d($sp)\n", mapReg[reg], -memLoc * 4);
+						printf("\tlw $%d, %d($sp)\n", mapReg[p->regAlloc[-memLoc]], -memLoc * 4);
 					}
 					var = var->next;
 				}
-
+				
 			}else {
 				printf("\t.globl main\nmain:\n\tmove $fp, $sp\n");
 				struct List * tmp = data;
@@ -5222,7 +4441,7 @@ int main() {
 						}else {
 							printf("\tand $%d, $%d, $%d\n", a, b, c);
 						}
-
+	
 					}else if(t == ASSIGN_SHR) {
 						if(inc->b->var == -1 && inc->c->var == -1) {
 							ERROR(106);
@@ -5284,7 +4503,7 @@ int main() {
 						if(inc->b->var == -1 && inc->c->var == -1) {
 							ERROR(110);
 						}
-
+						
 						if(inc->c->var == -1) {
 							printf("\tli $v0, %d\n", inc->c->idx);
 							c = 2;
@@ -5297,7 +4516,7 @@ int main() {
 						if(inc->b->var == -1 && inc->c->var == -1) {
 							ERROR(111);
 						}
-
+						
 						if(inc->c->var == -1) {
 							printf("\tli $v0, %d\n", inc->c->idx);
 							c = 2;
@@ -5310,7 +4529,7 @@ int main() {
 						if(inc->b->var == -1 && inc->c->var == -1) {
 							ERROR(112);
 						}
-
+						
 						if(inc->c->var == -1) {
 							printf("\tli $v0, %d\n", inc->c->idx);
 							c = 2;
@@ -5323,7 +4542,7 @@ int main() {
 						if(inc->b->var == -1 && inc->c->var == -1) {
 							ERROR(113);
 						}
-
+						
 						if(inc->c->var == -1) {
 							printf("\tli $v0, %d\n", inc->c->idx);
 							c = 2;
@@ -5414,14 +4633,14 @@ int main() {
 							c = 2;
 						}
 						printf("\tli $%d, 1\n\tbeq $%d, $0, 8\n\tbne $%d, $0, 8\n\tli $%d, 0\n", a, b, c, a);
-						/*						if(b == 4) {
-												printf("\tsne $a0, $%d, $0\n", b);
-												printf("\tsne $v0, $%d, $0\n", c);
-												}else {
-												printf("\tsne $a0, $%d, $0\n", c);
-												printf("\tsne $v0, $%d, $0\n", b);	
-												}
-												printf("\tand $%d, $a0, $v0\n", a);*/
+/*						if(b == 4) {
+							printf("\tsne $a0, $%d, $0\n", b);
+							printf("\tsne $v0, $%d, $0\n", c);
+						}else {
+							printf("\tsne $a0, $%d, $0\n", c);
+							printf("\tsne $v0, $%d, $0\n", b);	
+						}
+						printf("\tand $%d, $a0, $v0\n", a);*/
 					}else if(t == ASSIGN_DEREF || t == ASSIGN_DEREF_ADDRESS) {
 						if(inc->b->var == -1) {
 							printf("\tli $v0, %d\n", inc->b->idx);
@@ -5530,19 +4749,12 @@ int main() {
 					}else {
 						printf("wtf\n");
 					}
-					//printf("%d\n", isAssign(inc->type));
-					//	printf("%d %d %d\n", inc->type, CALL, inc->func);
-					//	if(inc->func) {
-					//		printf("%d\n", isVoid(inc->func->rtn));
-					//	}
 					if(isAssign(inc->type) && a == 2 && !(inc->type == CALL && isVoid(inc->func->rtn))) {
 						int memLoc = memoryLocate[inc->a->var];
 						if(memLoc > 0) {
 							printf("\tsw $%d, d%d\n", a, inc->a->var);
 						}else {
-							if(!dangerous[inc->a->var] && inc->liveness[-memLoc]) {
-								printf("\tsw $%d, %d($sp)\n", a, -memLoc * 4);
-							}
+							printf("\tsw $%d, %d($sp)\n", a, -memLoc * 4);
 						}
 					}
 					//printf("-\n");
@@ -5563,7 +4775,7 @@ int main() {
 				printf("\tjr $ra\n");
 			}else {
 				printf("\tjal func%d%s\n", funcMain->f, funcMain->f->name);
-
+			
 				printf("\tli $v0, 10\n\tsyscall\n");
 				printf("\tjr $ra\n");
 			}
